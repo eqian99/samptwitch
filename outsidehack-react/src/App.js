@@ -12,9 +12,14 @@ class App extends Component {
     this.handleStopClick = this.handleStopClick.bind(this);
     this.handlePlayClick = this.handlePlayClick.bind(this);
     this.handleBPMChange = this.handleBPMChange.bind(this);
+    this.handleClearClick = this.handleClearClick.bind(this);
     this.state = {
       currentBeat: 0,
       noteGrid: [
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
@@ -24,22 +29,30 @@ class App extends Component {
       isPlaying: false
     };
 
-    const sampleURLs = [
+    this.sampleURLs = [
+      "samples/ashanti.wav",
       "samples/hello.wav",
+      "samples/marley_chord_1.wav",
+      "samples/marley_chord_2.wav",
+      "samples/be_there_crash.wav",
       "samples/hat.wav",
-      "samples/snare.wav",
-      "samples/kick.wav"
+      "samples/mj_snare.wav",
+      "samples/thump_kick.wav"
     ];
-    this.sampleBuffers = ["", "", "", ""];
+    this.sampleBuffers = ["", "", "", "", "", "", "", ""];
 
-    fetch(sampleURLs[0])
+    for (var sampleIndex = 0; sampleIndex < this.sampleURLs.length; sampleIndex++) {
+      this.loadSample(sampleIndex);
+    }
+  }
+
+  loadSample(sampleIndex){
+    fetch(this.sampleURLs[sampleIndex])
     .then(response => response.arrayBuffer())
     .then(buffer => {
-      console.log("buffer: ", buffer);
-      console.log("context: ", context);
       context.decodeAudioData(buffer, decoded => {
         console.log("decoded: ", decoded);
-        this.sampleBuffers[0] = decoded ;
+        this.sampleBuffers[sampleIndex] = decoded ;
       }).catch(e => {
         console.log("error: ", e);
       });
@@ -47,55 +60,6 @@ class App extends Component {
     .catch(e => {
       console.log("error: ", e);
     });
-
-    fetch(sampleURLs[1])
-    .then(response => response.arrayBuffer())
-    .then(buffer => {
-      console.log("buffer: ", buffer);
-      console.log("context: ", context);
-      context.decodeAudioData(buffer, decoded => {
-        console.log("decoded: ", decoded);
-        this.sampleBuffers[1] = decoded ;
-      }).catch(e => {
-        console.log("error: ", e);
-      });
-    })
-    .catch(e => {
-      console.log("error: ", e);
-    });
-
-    fetch(sampleURLs[2])
-    .then(response => response.arrayBuffer())
-    .then(buffer => {
-      console.log("buffer: ", buffer);
-      console.log("context: ", context);
-      context.decodeAudioData(buffer, decoded => {
-        console.log("decoded: ", decoded);
-        this.sampleBuffers[2] = decoded ;
-      }).catch(e => {
-        console.log("error: ", e);
-      });
-    })
-    .catch(e => {
-      console.log("error: ", e);
-    });
-
-    fetch(sampleURLs[3])
-    .then(response => response.arrayBuffer())
-    .then(buffer => {
-      console.log("buffer: ", buffer);
-      console.log("context: ", context);
-      context.decodeAudioData(buffer, decoded => {
-        console.log("decoded: ", decoded);
-        this.sampleBuffers[3] = decoded ;
-      }).catch(e => {
-        console.log("error: ", e);
-      });
-    })
-    .catch(e => {
-      console.log("error: ", e);
-    });
-
   }
 
   tick() {
@@ -159,6 +123,21 @@ class App extends Component {
     });
   }
 
+  handleClearClick() {
+    var newNoteGrid = [];
+    for (var i = 0; i < 8; i++){
+      var row = [];
+      for (var j = 0; j < 16; j++) {
+        row.push(false);
+      }
+      newNoteGrid.push(row);
+    }
+    console.log(newNoteGrid);
+    this.setState({
+      noteGrid: newNoteGrid
+    });
+  }
+
   render() {
     return (
       <div>
@@ -169,7 +148,11 @@ class App extends Component {
         <SampleSequence name="B" sequence={this.state.noteGrid[1]} sampleIndex={1} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="C" sequence={this.state.noteGrid[2]} sampleIndex={2} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="D" sequence={this.state.noteGrid[3]} sampleIndex={3} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-
+        <SampleSequence name="E" sequence={this.state.noteGrid[4]} sampleIndex={4} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
+        <SampleSequence name="F" sequence={this.state.noteGrid[5]} sampleIndex={5} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="G" sequence={this.state.noteGrid[6]} sampleIndex={6} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="H" sequence={this.state.noteGrid[7]} sampleIndex={7} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <button onClick={this.handleClearClick}><b>X</b></button>
       </div>
     );
   }
