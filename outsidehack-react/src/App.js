@@ -1,8 +1,72 @@
 import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
+import SearchInput, {createFilter} from 'react-search-input';
+
+const KEYS_TO_FILTERS = ['artist', 'track']
 
 const context = new AudioContext();
+const dataServer = "http://127.0.0.1:5000";
+
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+var audio_samples = [];
+var pre = document.querySelector('pre');
+var audio_data_left;
+var audio_data_right;
+var sample_info_endpoint = 'http://127.0.0.1:5000/trackinfo/';
+var samp_rate = 44100;
+function snippet(start, stop, source) {
+    var thisbuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 5, audioCtx.sampleRate);
+    thisbuffer.copyToChannel(audio_data_left.slice(Math.floor(samp_rate*start),Math.floor(samp_rate*stop)), 0);
+    thisbuffer.copyToChannel(audio_data_right.slice(Math.floor(samp_rate*start),Math.floor(samp_rate*stop)), 1);
+    return thisbuffer;
+}
+
+function getData(url, trackbpm, cb) {
+  var request = new XMLHttpRequest();
+  request.open('GET', url, true);
+  request.responseType = 'arraybuffer';
+  request.onload = function() {
+    var audioData = request.response;
+    audioCtx.decodeAudioData(audioData, function(buffer) {
+        var myBuffer = buffer;
+        audio_data_left = myBuffer.getChannelData(0);
+        audio_data_right = myBuffer.getChannelData(1);
+        console.log(audio_data_left.length);
+        var samples = [];
+        for(var i=0;i<30;i++)
+        {
+            var samp = audio_samples[i];
+            samples.push(snippet(samp.sampstart, samp.sampend));
+        }
+        var sampdata = {};
+        sampdata.bpm = trackbpm;
+        sampdata.samples = samples;
+        console.log(sampdata);
+        cb(sampdata);
+      },
+      function(e){"Error with decoding audio data" + e.error});
+  }
+  request.send();
+}
+function getTrackData(trackid, cb) {
+    var url = sample_info_endpoint + trackid;
+    var request = new XMLHttpRequest();
+    request.open('GET', url, true);
+    request.onload = function() {
+        var trackdata = JSON.parse(request.response);
+        getData(trackdata.url, trackdata.bpm, cb);
+        var trackbpm = trackdata.bpm;
+        for(var i=0; i<30; i++) {
+            var beat_number = trackdata.beat_selections[i];
+            var x = {};
+            x.sampstart = trackdata.beat_times[beat_number];
+            x.sampend = trackdata.beat_times[beat_number+2];
+            audio_samples.push(x);
+        }
+    }
+    request.send();
+}
 
 class App extends Component {
   constructor(props) {
@@ -13,6 +77,9 @@ class App extends Component {
     this.handlePlayClick = this.handlePlayClick.bind(this);
     this.handleBPMChange = this.handleBPMChange.bind(this);
     this.handleClearClick = this.handleClearClick.bind(this);
+    this.searchUpdated = this.searchUpdated.bind(this)
+    this.handleSearchResultClick = this.handleSearchResultClick.bind(this);
+
     this.state = {
       currentBeat: 0,
       noteGrid: [
@@ -22,11 +89,21 @@ class App extends Component {
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
-        [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true ]
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
       ],
       bpm: 120,
-      isPlaying: false
+      isPlaying: false,
+      searchTerm: '',
+      library: []
     };
 
     this.sampleURLs = [
@@ -39,7 +116,7 @@ class App extends Component {
       "samples/mj_snare.wav",
       "samples/thump_kick.wav"
     ];
-    this.sampleBuffers = ["", "", "", "", "", "", "", ""];
+    this.sampleBuffers = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
 
     for (var sampleIndex = 0; sampleIndex < this.sampleURLs.length; sampleIndex++) {
       this.loadSample(sampleIndex);
@@ -51,7 +128,6 @@ class App extends Component {
     .then(response => response.arrayBuffer())
     .then(buffer => {
       context.decodeAudioData(buffer, decoded => {
-        console.log("decoded: ", decoded);
         this.sampleBuffers[sampleIndex] = decoded ;
       }).catch(e => {
         console.log("error: ", e);
@@ -68,7 +144,7 @@ class App extends Component {
     }
 
     for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
-      if (this.state.noteGrid[sampleIndex][this.state.currentBeat]) {
+      if (this.state.noteGrid[sampleIndex][this.state.currentBeat] && this.sampleBuffers[sampleIndex]) {
         var source = context.createBufferSource();
         source.buffer = this.sampleBuffers[sampleIndex];
         source.connect(context.destination);
@@ -85,6 +161,19 @@ class App extends Component {
     );
   }
 
+  componentDidMount() {
+    fetch(dataServer + "/getlibrary")
+    .then((response) => {
+      console.log("response: ", response);
+      return response.json();
+    })
+    .then((json) => {
+      this.setState({
+        library:json
+      })
+    });
+  }
+
   handleNoteClick(sampleIndex, currentBeat){
 
     var newNoteGrid = this.state.noteGrid;
@@ -95,11 +184,12 @@ class App extends Component {
   }
 
   handleSampleClick(sampleIndex){
-    var source = context.createBufferSource();
-    source.buffer = this.sampleBuffers[sampleIndex];
-    source.connect(context.destination);
-    source.start();
-
+    if (this.sampleBuffers[sampleIndex]){
+      var source = context.createBufferSource();
+      source.buffer = this.sampleBuffers[sampleIndex];
+      source.connect(context.destination);
+      source.start();
+    }
   }
   handleStopClick() {
     this.setState({
@@ -125,22 +215,44 @@ class App extends Component {
 
   handleClearClick() {
     var newNoteGrid = [];
-    for (var i = 0; i < 8; i++){
+    for (var i = 0; i < 16; i++){
       var row = [];
       for (var j = 0; j < 16; j++) {
         row.push(false);
       }
       newNoteGrid.push(row);
     }
-    console.log(newNoteGrid);
     this.setState({
       noteGrid: newNoteGrid
     });
   }
+  searchUpdated (term) {
+    this.setState({searchTerm: term})
+  }
 
+  handleSearchResultClick(trackid){
+    let self = this;
+    getTrackData(trackid, function(return_data){
+      for (var i = 8; i < 16; i++){
+        self.sampleBuffers[i] = return_data.samples[i];
+      }
+      self.setState({
+        bpm: return_data.bpm
+      })
+    })
+  }
   render() {
+
+    var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
+    if (filteredSearchResults.length == this.state.library.length){
+      filteredSearchResults = [];
+    }
+    filteredSearchResults = filteredSearchResults.slice(0, 5);
+
     return (
       <div>
+
+
         <label>BPM: </label><input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
         <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
 
@@ -152,7 +264,22 @@ class App extends Component {
         <SampleSequence name="F" sequence={this.state.noteGrid[5]} sampleIndex={5} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="G" sequence={this.state.noteGrid[6]} sampleIndex={6} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="H" sequence={this.state.noteGrid[7]} sampleIndex={7} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="I" sequence={this.state.noteGrid[8]} sampleIndex={8} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
+        <SampleSequence name="J" sequence={this.state.noteGrid[9]} sampleIndex={9} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="K" sequence={this.state.noteGrid[10]} sampleIndex={10} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="L" sequence={this.state.noteGrid[11]} sampleIndex={11} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="M" sequence={this.state.noteGrid[12]} sampleIndex={12} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
+        <SampleSequence name="N" sequence={this.state.noteGrid[13]} sampleIndex={13} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="O" sequence={this.state.noteGrid[14]} sampleIndex={14} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+        <SampleSequence name="P" sequence={this.state.noteGrid[15]} sampleIndex={15} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
+
         <button onClick={this.handleClearClick}><b>X</b></button>
+        <SearchInput className="search-input" onChange={this.searchUpdated} />
+        {filteredSearchResults.map(searchResult => {
+          return (
+            <div key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult.trackid)}}>{searchResult.artist} - {searchResult.title}</div>
+          )
+        })}
       </div>
     );
   }
@@ -194,7 +321,6 @@ class SampleSequence extends React.Component {
     this.props.onNoteClick(this.props.sampleIndex, currentBeat);
   }
   handleSampleClick(e) {
-    console.log("sample click!");
     this.props.onSampleClick(this.props.sampleIndex);
   }
   render() {
