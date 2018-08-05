@@ -3,14 +3,16 @@ import logo from './logo.svg';
 import './App.css';
 import SearchInput, {createFilter} from 'react-search-input';
 import Tuna from 'tunajs';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 
 const KEYS_TO_FILTERS = ['artist', 'track']
 
 const context = new AudioContext();
 var tuna = new Tuna(context);
 
-const localServer = "http://127.0.0.1:5000";
-const remoteServer = "http://35.166.222.57:5000";
+const localServer = "https://127.0.0.1:5000";
+const remoteServer = "https://35.166.222.57:5000";
 
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 var audio_samples = [];
@@ -36,7 +38,6 @@ function getData(url, trackbpm, cb) {
         var myBuffer = buffer;
         audio_data_left = myBuffer.getChannelData(0);
         audio_data_right = myBuffer.getChannelData(1);
-        console.log(audio_data_left.length);
         var samples = [];
         for(var i=0;i<30;i++)
         {
@@ -46,7 +47,6 @@ function getData(url, trackbpm, cb) {
         var sampdata = {};
         sampdata.bpm = trackbpm;
         sampdata.samples = samples;
-        console.log(sampdata);
         cb(sampdata);
       },
       function(e){"Error with decoding audio data" + e.error});
@@ -116,40 +116,20 @@ class App extends Component {
     };
 
     this.loPassFilter = new tuna.Filter({
-      frequency: 440, //20 to 22050
+      frequency: 900, //20 to 22050
       Q: 1, //0.001 to 100
       gain: 0, //-40 to 40 (in decibels)
       filterType: "lowpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
       bypass: 0
     });
 
-    this.convolver = new tuna.Convolver({
-      highCut: 22050,                         //20 to 22050
-      lowCut: 20,                             //20 to 22050
-      dryLevel: 1,                            //0 to 1+
-      wetLevel: 1,                            //0 to 1+
-      level: 1,                               //0 to 1+, adjusts total output of both wet and dry
-      impulse: "impulses/impulse_rev.wav",    //the path to your impulse response
-      bypass: 0
-    });
-
-    this.filter = new tuna.Filter({
-      frequency: 440, //20 to 22050
+    this.hiPassFilter = new tuna.Filter({
+      frequency: 2000, //20 to 22050
       Q: 1, //0.001 to 100
       gain: 0, //-40 to 40 (in decibels)
       filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
       bypass: 0
     });
-
-
-    self.overdrive = new tuna.Overdrive({
-      outputGain: 0.5,         //0 to 1+
-      drive: 0.7,              //0 to 1
-      curveAmount: 1,          //0 to 1
-      algorithmIndex: 0,       //0 to 5, selects one of our drive algorithms
-      bypass: 0
-    });
-
     this.sampleURLs = [
       "samples/ashanti.wav",
       "samples/hello.wav",
@@ -183,7 +163,6 @@ class App extends Component {
   }
 
   tick() {
-    console.log("isPlaying: ", this.state.isPlaying);
     if (!this.state.isPlaying){
       return;
     }
@@ -213,6 +192,10 @@ class App extends Component {
       this.loPassFilter.connect(currentLastNode);
       currentLastNode = this.loPassFilter;
     }
+    if (this.state.hiPass) {
+      this.hiPassFilter.connect(currentLastNode);
+      currentLastNode = this.hiPassFilter;
+    }
 
     source.connect(currentLastNode);
     source.start();
@@ -221,7 +204,6 @@ class App extends Component {
   componentDidMount() {
     fetch(remoteServer + "/getlibrary")
     .then((response) => {
-      console.log("response: ", response);
       return response.json();
     })
     .then((json) => {
@@ -255,7 +237,6 @@ class App extends Component {
     });
   }
   handlePlayClick(){
-    console.log("this.state: ", this.state);
 
     this.setState({
       isPlaying:true
@@ -296,7 +277,7 @@ class App extends Component {
         self.sampleBuffers[i] = return_data.samples[i];
       }
       self.setState({
-        bpm: return_data.bpm
+        bpm: (return_data.bpm * 1.1)
       })
     })
   }
@@ -316,16 +297,41 @@ class App extends Component {
     if (filteredSearchResults.length == this.state.library.length){
       filteredSearchResults = [];
     }
-    filteredSearchResults = filteredSearchResults.slice(0, 5);
+    filteredSearchResults = filteredSearchResults.slice(0, 20);
+
+    var hiPassButtonStyle = {};
+    if (this.state.hiPass){
+      hiPassButtonStyle["backgroundColor"] = "#c5bade"
+    } else {
+      hiPassButtonStyle["backgroundColor"] = "white"
+    }
+
+    var loPassButtonStyle = {};
+    if (this.state.loPass){
+      loPassButtonStyle["backgroundColor"] = "#c5bade"
+
+    } else {
+      loPassButtonStyle["backgroundColor"] = "white"
+    }
 
     return (
-      <div>
+      <div className="container">
 
-
-        <label>BPM: </label><input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
-        <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
-        <button onClick={this.handleLoClick}><b>LO</b></button>
-        <button onClick={this.handleHiClick}><b>HI</b></button>
+        <div className="row">
+          <div className="col-sm top-left">
+            <input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
+          </div>
+          <div className="col-sm">
+            <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
+          </div >
+          <div className="col-sm">
+            <button onClick={this.handleLoClick} style={loPassButtonStyle} data-toggle="button"><b>LO</b></button>
+            <button onClick={this.handleHiClick} style={hiPassButtonStyle} data-toggle="button"><b>HI</b></button>
+          </div>
+          <div className="col-sm top-right">
+            <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
+          </div>
+        </div>
 
         <SampleSequence name="A" sequence={this.state.noteGrid[0]} sampleIndex={0} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
         <SampleSequence name="B" sequence={this.state.noteGrid[1]} sampleIndex={1} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
@@ -344,11 +350,10 @@ class App extends Component {
         <SampleSequence name="O" sequence={this.state.noteGrid[14]} sampleIndex={14} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="P" sequence={this.state.noteGrid[15]} sampleIndex={15} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
 
-        <button onClick={this.handleClearClick}><b>X</b></button>
-        <SearchInput className="search-input" onChange={this.searchUpdated} />
+        <SearchInput className="search-input row" onChange={this.searchUpdated} />
         {filteredSearchResults.map(searchResult => {
           return (
-            <div key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult.trackid)}}>{searchResult.artist} - {searchResult.title}</div>
+            <div className="row" key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult.trackid)}}>{searchResult.artist} - {searchResult.title}</div>
           )
         })}
       </div>
@@ -405,13 +410,12 @@ class SampleSequence extends React.Component {
           isPlaying = true;
         }
         row.push(<Note key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
-          {count}
         </Note>);
         sampleSequenceJSX.push(row);
     }
     return (
-      <div>
-        <button type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
+      <div className="row">
+        <button className="btn-sample" type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
         {sampleSequenceJSX}
       </div>
     );
@@ -436,7 +440,7 @@ class Note extends React.Component {
       style["color"] = "black";
     }
     if (this.props.isOn) {
-      style['backgroundColor'] = "blue"
+      style['backgroundColor'] = "#c5bade"
     } else {
       style['backgroundColor'] = "white"
     }
