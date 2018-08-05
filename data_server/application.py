@@ -25,6 +25,7 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, send_wildcard=True)
 
 METADATA_DIR = './data/metadata'
+LIBRARY_FILE = './data/trackdata.json'
 
 @app.route('/trackinfo/<trackid>')
 def trackinfo(trackid):
@@ -48,6 +49,15 @@ def trackinfo(trackid):
     the_data['bpm'] = 60.0/beatlengths[len(beatlengths)//2]
 
     return jsonify(the_data)
+
+@app.route('/getlibrary')
+def getlibrary():
+    """
+    """
+    with open(LIBRARY_FILE, 'r') as f:
+        trackdata = json.load(f)
+
+    return jsonify(trackdata)
 
 
 if __name__=='__main__':
