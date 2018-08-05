@@ -1,4 +1,4 @@
-import settings
+from . import settings
 import oauthlib
 import oauthlib.oauth1
 import requests
