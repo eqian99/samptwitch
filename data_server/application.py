@@ -4,7 +4,6 @@ Created 08-05-18 by Matt C. McCallum
 
 
 # Local imports
-from data_access import dir_funcs
 from SevenD_search import settings
 from SevenD_search import api_7d
 
@@ -24,8 +23,9 @@ import os
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, send_wildcard=True)
 
-METADATA_DIR = './data/metadata'
+METADATA_DIR = './data/groomed_metadata'
 LIBRARY_FILE = './data/trackdata.json'
+
 
 @app.route('/trackinfo/<trackid>')
 def trackinfo(trackid):
