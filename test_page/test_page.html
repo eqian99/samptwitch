@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width">
+
+    <title>decodeAudioData example</title>
+
+    <link rel="stylesheet" href="">
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+    <h1>decodeAudioData example</h1>
+
+    <button class="play1">Play 1</button>
+    <button class="play2">Play 2</button>
+    <button class="play3">Play 3</button>
+    <button class="play4">Play 4</button>
+    <button class="play5">Play 5</button>
+    <button class="play6">Play 6</button>
+    <button class="play7">Play 7</button>
+    <button class="play8">Play 8</button>
+    <button class="stop">Stop</button>
+
+    <h2>Set playback rate</h2>
+    <input class="playback-rate-control" type="range" min="0.25" max="3" step="0.05" value="1">
+    <span class="playback-rate-value">1.0</span>
+
+    <h2>Set loop start and loop end</h2>
+    <input class="loopstart-control" type="range" min="0" max="20" step="1" value="0">
+    <span class="loopstart-value">0</span>
+
+    <input class="loopend-control" type="range" min="0" max="20" step="1" value="0">
+    <span class="loopend-value">0</span>
+
+    <pre></pre>
+  </body>
+<script>
+// define variables
+var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+var audio_samples = [];
+var pre = document.querySelector('pre');
+var myScript = document.querySelector('script');
+var audio_data_left;
+var audio_data_right;
+var trackbpm = 120;
+
+
+function snippet(start, stop, source) {
+    console.log(Math.floor(44100*start));
+    console.log(Math.floor(44100*stop));
+    console.log(audio_data_left.length);
+    console.log(audio_data_right.length);
+    thisbuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 5, audioCtx.sampleRate);
+    thisbuffer.copyToChannel(audio_data_left.slice(Math.floor(44100*start),Math.floor(44100*stop)), 0);
+    thisbuffer.copyToChannel(audio_data_right.slice(Math.floor(44100*start),Math.floor(44100*stop)), 1);
+    return thisbuffer;
+}
+
+function playsnippet(numb) {
+  source = audioCtx.createBufferSource();
+  snippet(audio_samples[numb].sampstart, audio_samples[numb].sampend, source);
+  source.connect(audioCtx.destination);
+  source.start(0);
+}
+
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function getAllIndexes(arr, val) {
+    var indexes = [], i = -1;
+    while ((i = arr.indexOf(val, i+1)) != -1){
+        indexes.push(i);
+    }
+    return indexes;
+}
+
+function getData(url, cb) {
+  request = new XMLHttpRequest();
+  request.open('GET', url, true);
+  request.responseType = 'arraybuffer';
+  request.onload = function() {
+    var audioData = request.response;
+    audioCtx.decodeAudioData(audioData, function(buffer) {
+        myBuffer = buffer;
+        audio_data_left = myBuffer.getChannelData(0);
+        audio_data_right = myBuffer.getChannelData(1);
+        console.log(audio_data_left.length);
+        // console.log(audio_data_left.slice(44100*10,44100*13-1).length);
+        // playrandom();
+        samples = [];
+        for(i=0;i<30;i++)
+        {
+            samp = audio_samples[i];
+            samples.push(snippet(samp.sampstart, samp.sampend));
+        }
+        sampdata = {};
+        sampdata.bpm = trackbpm;
+        sampdata.samples = samples;
+        console.log(sampdata);
+        // cb(sampdata);
+      },
+      function(e){"Error with decoding audio data" + e.error});
+  }
+  request.send();
+}
+
+function getTrackData(trackid, cb) {
+    url = 'http://127.0.0.1:5000/trackinfo/' + trackid;
+    console.log('hi')
+    request = new XMLHttpRequest();
+    request.open('GET', url, true);
+    request.onload = function() {
+        var trackdata = JSON.parse(request.response);
+        getData(trackdata.url, cb)
+        trackbpm = trackdata.bpm;
+
+        for(i=0; i<30; i++) {
+            beats = getAllIndexes(trackdata.beat_labels, i)
+            beat_number = getRandomInt(0, beats.length)
+            x = {};
+            x.sampstart = trackdata.beat_times[beats[beat_number]];
+            x.sampend = trackdata.beat_times[beats[beat_number]+2];
+            audio_samples.push(x);
+        }
+        console.log(audio_samples);
+    }
+    request.send();
+}
+
+trackid = '85407';
+getTrackData(trackid, playsnippet);
+
+// dump script to pre element
+pre.innerHTML = myScript.innerHTML;
+  </script>
+</html>
