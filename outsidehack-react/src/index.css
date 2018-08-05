@@ -31,3 +31,6 @@ button.top-right {
 button.btn-sample{
   background-color: #e6e6e6;
 }
+SampleSequence.border{
+  margin-top: 20px !important;
+}
