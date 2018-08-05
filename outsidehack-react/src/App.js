@@ -2,18 +2,22 @@ import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import SearchInput, {createFilter} from 'react-search-input';
+import Tuna from 'tunajs';
 
 const KEYS_TO_FILTERS = ['artist', 'track']
 
 const context = new AudioContext();
-const dataServer = "http://127.0.0.1:5000";
+var tuna = new Tuna(context);
+
+const localServer = "http://127.0.0.1:5000";
+const remoteServer = "http://35.166.222.57:5000";
 
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 var audio_samples = [];
 var pre = document.querySelector('pre');
 var audio_data_left;
 var audio_data_right;
-var sample_info_endpoint = 'http://127.0.0.1:5000/trackinfo/';
+var sample_info_endpoint = remoteServer + '/trackinfo/';
 var samp_rate = 44100;
 function snippet(start, stop, source) {
     var thisbuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 5, audioCtx.sampleRate);
@@ -49,6 +53,7 @@ function getData(url, trackbpm, cb) {
   }
   request.send();
 }
+
 function getTrackData(trackid, cb) {
     var url = sample_info_endpoint + trackid;
     var request = new XMLHttpRequest();
@@ -61,7 +66,7 @@ function getTrackData(trackid, cb) {
             var beat_number = trackdata.beat_selections[i];
             var x = {};
             x.sampstart = trackdata.beat_times[beat_number];
-            x.sampend = trackdata.beat_times[beat_number+2];
+            x.sampend = trackdata.beat_times[beat_number+4];
             audio_samples.push(x);
         }
     }
@@ -79,6 +84,8 @@ class App extends Component {
     this.handleClearClick = this.handleClearClick.bind(this);
     this.searchUpdated = this.searchUpdated.bind(this)
     this.handleSearchResultClick = this.handleSearchResultClick.bind(this);
+    this.handleLoClick = this.handleLoClick.bind(this);
+    this.handleHiClick = this.handleHiClick.bind(this);
 
     this.state = {
       currentBeat: 0,
@@ -103,8 +110,18 @@ class App extends Component {
       bpm: 120,
       isPlaying: false,
       searchTerm: '',
-      library: []
+      library: [],
+      loPass: false,
+      hiPass: false
     };
+
+    this.loPassFilter = new tuna.Filter({
+      frequency: 440, //20 to 22050
+      Q: 1, //0.001 to 100
+      gain: 0, //-40 to 40 (in decibels)
+      filterType: "lowpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
+      bypass: 0
+    });
 
     this.sampleURLs = [
       "samples/ashanti.wav",
@@ -139,16 +156,14 @@ class App extends Component {
   }
 
   tick() {
+    console.log("isPlaying: ", this.state.isPlaying);
     if (!this.state.isPlaying){
       return;
     }
 
     for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
       if (this.state.noteGrid[sampleIndex][this.state.currentBeat] && this.sampleBuffers[sampleIndex]) {
-        var source = context.createBufferSource();
-        source.buffer = this.sampleBuffers[sampleIndex];
-        source.connect(context.destination);
-        source.start();
+        this.playNote(sampleIndex);
       }
     }
     this.setState({
@@ -161,8 +176,23 @@ class App extends Component {
     );
   }
 
+  playNote(sampleIndex) {
+
+    var source = context.createBufferSource();
+    source.buffer = this.sampleBuffers[sampleIndex];
+    var currentLastNode = context.destination;
+
+    if (this.state.loPass) {
+      this.loPassFilter.connect(currentLastNode);
+      currentLastNode = this.loPassFilter;
+    }
+
+    source.connect(currentLastNode);
+    source.start();
+  }
+
   componentDidMount() {
-    fetch(dataServer + "/getlibrary")
+    fetch(remoteServer + "/getlibrary")
     .then((response) => {
       console.log("response: ", response);
       return response.json();
@@ -198,9 +228,11 @@ class App extends Component {
     });
   }
   handlePlayClick(){
+    console.log("this.state: ", this.state);
+
     this.setState({
       isPlaying:true
-    })
+    });
     setTimeout(
       () => this.tick(),
       (60 *1000/ this.state.bpm)
@@ -241,6 +273,16 @@ class App extends Component {
       })
     })
   }
+  handleLoClick() {
+    this.setState({
+      loPass: !this.state.loPass
+    });
+  }
+  handleHiClick() {
+    this.setState({
+      hiPass: !this.state.hiPass
+    });
+  }
   render() {
 
     var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
@@ -255,6 +297,8 @@ class App extends Component {
 
         <label>BPM: </label><input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
         <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
+        <button onClick={this.handleLoClick}><b>LO</b></button>
+        <button onClick={this.handleHiClick}><b>HI</b></button>
 
         <SampleSequence name="A" sequence={this.state.noteGrid[0]} sampleIndex={0} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
         <SampleSequence name="B" sequence={this.state.noteGrid[1]} sampleIndex={1} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
@@ -331,7 +375,7 @@ class SampleSequence extends React.Component {
         var count = counts[i];
         var isPlaying = false;
         if (this.props.currentBeat == count){
-          var isPlaying = true;
+          isPlaying = true;
         }
         row.push(<Note key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
           {count}
