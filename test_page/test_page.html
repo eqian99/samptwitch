@@ -49,16 +49,13 @@ var myScript = document.querySelector('script');
 var audio_data_left;
 var audio_data_right;
 var trackbpm = 120;
-
+var sample_info_endpoint = 'http://127.0.0.1:5000/trackinfo/';
+var samp_rate = 44100;
 
 function snippet(start, stop, source) {
-    console.log(Math.floor(44100*start));
-    console.log(Math.floor(44100*stop));
-    console.log(audio_data_left.length);
-    console.log(audio_data_right.length);
     thisbuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 5, audioCtx.sampleRate);
-    thisbuffer.copyToChannel(audio_data_left.slice(Math.floor(44100*start),Math.floor(44100*stop)), 0);
-    thisbuffer.copyToChannel(audio_data_right.slice(Math.floor(44100*start),Math.floor(44100*stop)), 1);
+    thisbuffer.copyToChannel(audio_data_left.slice(Math.floor(samp_rate*start),Math.floor(samp_rate*stop)), 0);
+    thisbuffer.copyToChannel(audio_data_right.slice(Math.floor(samp_rate*start),Math.floor(samp_rate*stop)), 1);
     return thisbuffer;
 }
 
@@ -92,8 +89,6 @@ function getData(url, cb) {
         audio_data_left = myBuffer.getChannelData(0);
         audio_data_right = myBuffer.getChannelData(1);
         console.log(audio_data_left.length);
-        // console.log(audio_data_left.slice(44100*10,44100*13-1).length);
-        // playrandom();
         samples = [];
         for(i=0;i<30;i++)
         {
@@ -104,7 +99,7 @@ function getData(url, cb) {
         sampdata.bpm = trackbpm;
         sampdata.samples = samples;
         console.log(sampdata);
-        // cb(sampdata);
+        cb(sampdata);
       },
       function(e){"Error with decoding audio data" + e.error});
   }
@@ -112,21 +107,21 @@ function getData(url, cb) {
 }
 
 function getTrackData(trackid, cb) {
-    url = 'http://127.0.0.1:5000/trackinfo/' + trackid;
-    console.log('hi')
+    url = sample_info_endpoint + trackid;
     request = new XMLHttpRequest();
     request.open('GET', url, true);
     request.onload = function() {
         var trackdata = JSON.parse(request.response);
-        getData(trackdata.url, cb)
+        getData(trackdata.url, cb);
         trackbpm = trackdata.bpm;
 
         for(i=0; i<30; i++) {
-            beats = getAllIndexes(trackdata.beat_labels, i)
-            beat_number = getRandomInt(0, beats.length)
+            beat_number = trackdata.beat_selections[i];
+            // getAllIndexes(trackdata.beat_labels, i);
+            // beat_number = getRandomInt(0, beats.length-1);
             x = {};
-            x.sampstart = trackdata.beat_times[beats[beat_number]];
-            x.sampend = trackdata.beat_times[beats[beat_number]+2];
+            x.sampstart = trackdata.beat_times[beat_number];
+            x.sampend = trackdata.beat_times[beat_number+2];
             audio_samples.push(x);
         }
         console.log(audio_samples);
