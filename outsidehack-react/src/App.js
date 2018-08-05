@@ -3,6 +3,8 @@ import logo from './logo.svg';
 import './App.css';
 import SearchInput, {createFilter} from 'react-search-input';
 import Tuna from 'tunajs';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 
 const KEYS_TO_FILTERS = ['artist', 'track']
 
@@ -123,6 +125,13 @@ class App extends Component {
       bypass: 0
     });
 
+    this.hiPassFilter = new tuna.Filter({
+      frequency: 2000, //20 to 22050
+      Q: 1, //0.001 to 100
+      gain: 0, //-40 to 40 (in decibels)
+      filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
+      bypass: 0
+    });
     this.sampleURLs = [
       "samples/ashanti.wav",
       "samples/hello.wav",
@@ -156,7 +165,7 @@ class App extends Component {
   }
 
   tick() {
-    console.log("isPlaying: ", this.state.isPlaying);
+    console.log("noteGrid: ", this.state.noteGrid);
     if (!this.state.isPlaying){
       return;
     }
@@ -185,6 +194,10 @@ class App extends Component {
     if (this.state.loPass) {
       this.loPassFilter.connect(currentLastNode);
       currentLastNode = this.loPassFilter;
+    }
+    if (this.state.hiPass) {
+      this.hiPassFilter.connect(currentLastNode);
+      currentLastNode = this.hiPassFilter;
     }
 
     source.connect(currentLastNode);
@@ -228,7 +241,6 @@ class App extends Component {
     });
   }
   handlePlayClick(){
-    console.log("this.state: ", this.state);
 
     this.setState({
       isPlaying:true
@@ -269,7 +281,7 @@ class App extends Component {
         self.sampleBuffers[i] = return_data.samples[i];
       }
       self.setState({
-        bpm: return_data.bpm
+        bpm: (return_data.bpm * 1.1)
       })
     })
   }
@@ -279,6 +291,7 @@ class App extends Component {
     });
   }
   handleHiClick() {
+    console.log(this.state.hiPass)
     this.setState({
       hiPass: !this.state.hiPass
     });
@@ -292,13 +305,23 @@ class App extends Component {
     filteredSearchResults = filteredSearchResults.slice(0, 5);
 
     return (
-      <div>
+      <div className="container">
 
-
-        <label>BPM: </label><input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
-        <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
-        <button onClick={this.handleLoClick}><b>LO</b></button>
-        <button onClick={this.handleHiClick}><b>HI</b></button>
+        <div className="row">
+          <div className="col-sm top-left">
+            <input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
+          </div>
+          <div className="col-sm">
+            <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
+          </div >
+          <div className="col-sm">
+            <button onClick={this.handleLoClick} className="" data-toggle="button"><b>LO</b></button>
+            <button onClick={this.handleHiClick} className="" data-toggle="button"><b>HI</b></button>
+          </div>
+          <div className="col-sm top-right">
+            <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
+          </div>
+        </div>
 
         <SampleSequence name="A" sequence={this.state.noteGrid[0]} sampleIndex={0} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
         <SampleSequence name="B" sequence={this.state.noteGrid[1]} sampleIndex={1} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
@@ -317,11 +340,10 @@ class App extends Component {
         <SampleSequence name="O" sequence={this.state.noteGrid[14]} sampleIndex={14} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="P" sequence={this.state.noteGrid[15]} sampleIndex={15} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
 
-        <button onClick={this.handleClearClick}><b>X</b></button>
-        <SearchInput className="search-input" onChange={this.searchUpdated} />
+        <SearchInput className="search-input row" onChange={this.searchUpdated} />
         {filteredSearchResults.map(searchResult => {
           return (
-            <div key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult.trackid)}}>{searchResult.artist} - {searchResult.title}</div>
+            <div className="row" key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult.trackid)}}>{searchResult.artist} - {searchResult.title}</div>
           )
         })}
       </div>
@@ -383,8 +405,8 @@ class SampleSequence extends React.Component {
         sampleSequenceJSX.push(row);
     }
     return (
-      <div>
-        <button type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
+      <div className="row">
+        <button className="btn-sample" type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
         {sampleSequenceJSX}
       </div>
     );
