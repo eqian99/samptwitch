@@ -1,0 +1,97 @@
+<div>
+    <button onclick="playSound(0)">Song 1</button>
+    <button onclick="playSound(1)">Song 2</button>
+    <button onclick="playSound(2)">Song 3</button>
+    <button onclick="stop()">Stop</button>
+</div>
+<div>
+    Playback rate: <input min="-100" max="100" value="0" oninput="changePlaybackRate(value)" type="range">
+</div>
+<div>
+    Detune: <input min="-100" max="100" value="0" oninput="changeDetune(value)" type="range">
+</div>
+<div>
+    <button onclick="toggleLoop()">Toggle Loop</button>
+</div>
+<div>
+    Loop start: <input min="0" max="100" value="0" oninput="changeLoopStart(value)" type="range">
+</div>
+<div>
+    Loop end: <input min="0" max="1000" value="0" oninput="changeLoopEnd(value)" type="range">
+</div>
+<script>
+    const audioBufferSourceNodeContext = new AudioContext()
+    const music_names = [
+        'ex1',
+        'ex2',
+        'ex3'
+    ];
+    const settings = {
+        detune: 0,
+        loop: true,
+        loopStart: 0,
+        loopEnd: 100,
+        playbackRate: 1
+    }
+    const music = [];
+    // loop through the sounds we want to import
+    for(let songName of music_names) {
+        // fetch them from the file system
+        fetch('sample_music/' + songName + '.mp3')
+            // when we get the asynchronous response, convert to an ArrayBuffer
+            .then(response => response.arrayBuffer())
+            .then(buffer => {
+                // decode the ArrayBuffer as an AudioBuffer
+                audioBufferSourceNodeContext.decodeAudioData(buffer, decoded => {
+                    // push the resulting sound to an array
+                    music.push(decoded);
+                });
+            });
+    }
+    let audioBufferSourceNode;
+    const playSound = (index) => {
+        // allow the user to play sound
+        audioBufferSourceNodeContext.resume();
+        if(audioBufferSourceNode) audioBufferSourceNode.stop();
+        // create a new AudioBufferSourceNode
+        audioBufferSourceNode = audioBufferSourceNodeContext.createBufferSource();
+        // set the buffer to the appropriate index
+        audioBufferSourceNode.buffer = music[index];
+        // connect the buffer node to the destination
+        audioBufferSourceNode.connect(audioBufferSourceNodeContext.destination);
+        // set the detune value
+        audioBufferSourceNode.detune.setValueAtTime(settings.detune, audioBufferSourceNodeContext.currentTime);
+        // set whether or not the node loops
+        audioBufferSourceNode.loop = settings.loop;
+        // set loop start and end
+        audioBufferSourceNode.loopStart = settings.loopStart;
+        audioBufferSourceNode.loopEnd = settings.loopEnd;
+        // set playback rate
+        audioBufferSourceNode.playbackRate.setValueAtTime(settings.playbackRate, audioBufferSourceNodeContext.currentTime);
+        // start playing the sound
+        audioBufferSourceNode.start();
+    }
+    const stop = () => {
+        if(audioBufferSourceNode) audioBufferSourceNode.stop();
+    }
+    const changePlaybackRate = (playbackRate) => {
+        settings.playbackRate = Math.pow(10, playbackRate / 100);
+        audioBufferSourceNode.playbackRate.setValueAtTime(settings.playbackRate, audioBufferSourceNodeContext.currentTime);
+    }
+    const changeDetune = (detune) => {
+        settings.detune = detune;
+        audioBufferSourceNode.detune.setValueAtTime(detune, audioBufferSourceNodeContext.currentTime);
+    }
+    const toggleLoop = () => {
+        settings.loop = !settings.loop;
+        audioBufferSourceNode.loop = settings.loop;
+    }
+    const changeLoopStart = (loopStart) => {
+        settings.loopStart = loopStart / 1000;
+        audioBufferSourceNode.loopStart = loopStart;
+    }
+    const changeLoopEnd = (loopEnd) => {
+        settings.loopEnd = loopEnd / 1000;
+        audioBufferSourceNode.loopEnd = loopEnd;
+    }
+</script>
