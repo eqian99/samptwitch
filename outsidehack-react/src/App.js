@@ -125,13 +125,41 @@ class App extends Component {
       bypass: 0
     });
 
+<<<<<<< HEAD
     this.hiPassFilter = new tuna.Filter({
       frequency: 2000, //20 to 22050
+=======
+    this.convolver = new tuna.Convolver({
+      highCut: 22050,                         //20 to 22050
+      lowCut: 20,                             //20 to 22050
+      dryLevel: 1,                            //0 to 1+
+      wetLevel: 1,                            //0 to 1+
+      level: 1,                               //0 to 1+, adjusts total output of both wet and dry
+      impulse: "impulses/impulse_rev.wav",    //the path to your impulse response
+      bypass: 0
+    });
+
+    this.filter = new tuna.Filter({
+      frequency: 440, //20 to 22050
+>>>>>>> 724fb63e3256c7b29c8a232ca91bd2cc1bf6df81
       Q: 1, //0.001 to 100
       gain: 0, //-40 to 40 (in decibels)
       filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
       bypass: 0
     });
+<<<<<<< HEAD
+=======
+
+
+    self.overdrive = new tuna.Overdrive({
+      outputGain: 0.5,         //0 to 1+
+      drive: 0.7,              //0 to 1
+      curveAmount: 1,          //0 to 1
+      algorithmIndex: 0,       //0 to 5, selects one of our drive algorithms
+      bypass: 0
+    });
+
+>>>>>>> 724fb63e3256c7b29c8a232ca91bd2cc1bf6df81
     this.sampleURLs = [
       "samples/ashanti.wav",
       "samples/hello.wav",
