@@ -11,8 +11,8 @@ const KEYS_TO_FILTERS = ['artist', 'track']
 const context = new AudioContext();
 var tuna = new Tuna(context);
 
-const localServer = "http://127.0.0.1:5000";
-const remoteServer = "http://35.166.222.57:5000";
+const localServer = "https://127.0.0.1:5000";
+const remoteServer = "https://35.166.222.57:5000";
 
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 var audio_samples = [];
@@ -118,7 +118,7 @@ class App extends Component {
     };
 
     this.loPassFilter = new tuna.Filter({
-      frequency: 440, //20 to 22050
+      frequency: 900, //20 to 22050
       Q: 1, //0.001 to 100
       gain: 0, //-40 to 40 (in decibels)
       filterType: "lowpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
@@ -291,7 +291,6 @@ class App extends Component {
     });
   }
   handleHiClick() {
-    console.log(this.state.hiPass)
     this.setState({
       hiPass: !this.state.hiPass
     });
@@ -304,6 +303,21 @@ class App extends Component {
     }
     filteredSearchResults = filteredSearchResults.slice(0, 5);
 
+    var hiPassButtonStyle = {};
+    if (this.state.hiPass){
+      hiPassButtonStyle["backgroundColor"] = "#c5bade"
+    } else {
+      hiPassButtonStyle["backgroundColor"] = "white"
+    }
+
+    var loPassButtonStyle = {};
+    if (this.state.loPass){
+      loPassButtonStyle["backgroundColor"] = "#c5bade"
+
+    } else {
+      loPassButtonStyle["backgroundColor"] = "white"
+    }
+
     return (
       <div className="container">
 
@@ -315,8 +329,8 @@ class App extends Component {
             <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
           </div >
           <div className="col-sm">
-            <button onClick={this.handleLoClick} className="" data-toggle="button"><b>LO</b></button>
-            <button onClick={this.handleHiClick} className="" data-toggle="button"><b>HI</b></button>
+            <button onClick={this.handleLoClick} style={loPassButtonStyle} data-toggle="button"><b>LO</b></button>
+            <button onClick={this.handleHiClick} style={hiPassButtonStyle} data-toggle="button"><b>HI</b></button>
           </div>
           <div className="col-sm top-right">
             <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
@@ -400,7 +414,6 @@ class SampleSequence extends React.Component {
           isPlaying = true;
         }
         row.push(<Note key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
-          {count}
         </Note>);
         sampleSequenceJSX.push(row);
     }
@@ -431,7 +444,7 @@ class Note extends React.Component {
       style["color"] = "black";
     }
     if (this.props.isOn) {
-      style['backgroundColor'] = "blue"
+      style['backgroundColor'] = "#c5bade"
     } else {
       style['backgroundColor'] = "white"
     }
