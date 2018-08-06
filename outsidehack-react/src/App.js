@@ -88,7 +88,7 @@ class App extends Component {
     this.handleHiClick = this.handleHiClick.bind(this);
 
     this.state = {
-      currentBeat: 0,
+      currentBeat: -1,
       noteGrid: [
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
@@ -167,14 +167,15 @@ class App extends Component {
       return;
     }
 
+    this.setState({
+      currentBeat: (this.state.currentBeat + 1) % 16
+    });
+
     for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
       if (this.state.noteGrid[sampleIndex][this.state.currentBeat] && this.sampleBuffers[sampleIndex]) {
         this.playNote(sampleIndex);
       }
     }
-    this.setState({
-      currentBeat: (this.state.currentBeat + 1) % 16
-    });
 
     setTimeout(
       () => this.tick(),
@@ -232,11 +233,13 @@ class App extends Component {
   }
   handleStopClick() {
     this.setState({
-      currentBeat: 0,
+      currentBeat: -1,
       isPlaying: false
     });
   }
   handlePlayClick(){
+
+    if (this.state.isPlaying) { return; }
 
     this.setState({
       isPlaying:true
@@ -292,7 +295,6 @@ class App extends Component {
     });
   }
   render() {
-
     var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
     if (filteredSearchResults.length == this.state.library.length){
       filteredSearchResults = [];
@@ -314,9 +316,18 @@ class App extends Component {
       loPassButtonStyle["backgroundColor"] = "white"
     }
 
+    var headerStyle = {};
+    headerStyle["marginLeft"] = "30px";
+
     return (
       <div className="container">
-
+        <div className="row" style={headerStyle}>
+            <img src="logo-small.png" width="80" height="80"></img>
+            <img src="logo-small.png" width="80" height="80"></img>
+            <img src="logo-small.png" width="80" height="80"></img>
+            <img src="logo-small.png" width="80" height="80"></img>
+            <img src="logo-small.png" width="80" height="80"></img>
+        </div>
         <div className="row">
           <div className="col-sm top-left">
             <input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
