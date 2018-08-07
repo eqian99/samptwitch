@@ -115,21 +115,26 @@ class App extends Component {
       hiPass: false
     };
 
-    this.loPassFilter = new tuna.Filter({
-      frequency: 900, //20 to 22050
-      Q: 1, //0.001 to 100
-      gain: 0, //-40 to 40 (in decibels)
-      filterType: "lowpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
-      bypass: 0
-    });
+    this.effectChains = [];
+    for (var i = 0; i < this.state.noteGrid.length; ++i) {
+        var loPassFilter = new tuna.Filter({
+            frequency: 900, //20 to 22050
+            Q: 1, //0.001 to 100
+            gain: 0, //-40 to 40 (in decibels)
+            filterType: "lowpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
+            bypass: 0
+        });
+        var hiPassFilter = new tuna.Filter({
+            frequency: 2000, //20 to 22050
+            Q: 1, //0.001 to 100
+            gain: 0, //-40 to 40 (in decibels)
+            filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
+            bypass: 0
+        });
 
-    this.hiPassFilter = new tuna.Filter({
-      frequency: 2000, //20 to 22050
-      Q: 1, //0.001 to 100
-      gain: 0, //-40 to 40 (in decibels)
-      filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
-      bypass: 0
-    });
+        this.effectChains.push([loPassFilter, hiPassFilter]);
+    }
+
     this.sampleURLs = [
       "samples/ashanti.wav",
       "samples/hello.wav",
@@ -190,12 +195,12 @@ class App extends Component {
     var currentLastNode = context.destination;
 
     if (this.state.loPass) {
-      this.loPassFilter.connect(currentLastNode);
-      currentLastNode = this.loPassFilter;
+      this.effectChains[sampleIndex][0].connect(currentLastNode);
+      currentLastNode = this.effectChains[sampleIndex][0];
     }
     if (this.state.hiPass) {
-      this.hiPassFilter.connect(currentLastNode);
-      currentLastNode = this.hiPassFilter;
+        this.effectChains[sampleIndex][1].connect(currentLastNode);
+        currentLastNode = this.effectChains[sampleIndex][1];
     }
 
     source.connect(currentLastNode);
