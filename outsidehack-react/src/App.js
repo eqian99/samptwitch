@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import logo from './logo.svg';
 import './App.css';
 import SearchInput, {createFilter} from 'react-search-input';
 import Tuna from 'tunajs';
@@ -304,7 +303,6 @@ class App extends Component {
     if (filteredSearchResults.length == this.state.library.length){
       filteredSearchResults = [];
     }
-    filteredSearchResults = filteredSearchResults.slice(0, 20);
 
     var hiPassButtonStyle = {};
     if (this.state.hiPass){
@@ -326,13 +324,6 @@ class App extends Component {
 
     return (
       <div className="container">
-        <div className="row" style={headerStyle}>
-            <img src="logo-small.png" width="80" height="80"></img>
-            <img src="logo-small.png" width="80" height="80"></img>
-            <img src="logo-small.png" width="80" height="80"></img>
-            <img src="logo-small.png" width="80" height="80"></img>
-            <img src="logo-small.png" width="80" height="80"></img>
-        </div>
         <div className="row">
           <div className="col-sm top-left">
             <input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
@@ -416,6 +407,25 @@ class SampleSequence extends React.Component {
     this.props.onSampleClick(this.props.sampleIndex);
   }
   render() {
+    var buttonStyle = {}
+    if (this.props.name < "I") {
+      buttonStyle["backgroundColor"] = "#ff9933";
+      buttonStyle["borderColor"] = "#604896";
+
+    } else {
+      buttonStyle["backgroundColor"] = "#8cc5cc";
+      buttonStyle["borderColor"] = "#604896";
+    }
+    var noteButtonStyle = {}
+    if (this.props.name < "I") {
+      noteButtonStyle["backgroundColor"] = "#fce5cf";
+      noteButtonStyle["borderColor"] = "#604896";
+
+    } else {
+      noteButtonStyle["backgroundColor"] = "#cce2e5";
+      noteButtonStyle["borderColor"] = "#604896";
+    }
+
     const counts = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     var sampleSequenceJSX = [];
     for(var i = 0; i < this.props.sequence.length; i++) {
@@ -425,13 +435,13 @@ class SampleSequence extends React.Component {
         if (this.props.currentBeat == count){
           isPlaying = true;
         }
-        row.push(<Note key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
+        row.push(<Note style={noteButtonStyle} key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
         </Note>);
         sampleSequenceJSX.push(row);
     }
     return (
       <div className="row">
-        <button className="btn-sample" type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
+        <button className="btn-sample" style={buttonStyle} type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
         {sampleSequenceJSX}
       </div>
     );
@@ -443,25 +453,23 @@ class Note extends React.Component {
   constructor(props) {
     super(props);
     this.handleNoteClick = this.handleNoteClick.bind(this);
-
   }
   handleNoteClick(e) {
     this.props.onNoteClick(this.props.count);
   }
   render() {
-    var style = {}
+    var styleButton = JSON.parse(JSON.stringify(this.props.style));
     if (this.props.isPlaying) {
-      style["color"] = "red";
+      styleButton["color"] = "red";
     } else {
-      style["color"] = "black";
+      styleButton["color"] = "black";
     }
     if (this.props.isOn) {
-      style['backgroundColor'] = "#c5bade"
-    } else {
-      style['backgroundColor'] = "white"
+      styleButton['backgroundColor'] = "#c5bade"
     }
+
     return (
-      <button type="button" onClick={this.handleNoteClick} style={style}>{this.props.count + 1}</button>
+      <button type="button" onClick={this.handleNoteClick} style={styleButton}>{(this.props.count % 4) + 1}</button>
     );
 
   }
