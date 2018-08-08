@@ -460,12 +460,15 @@ class Note extends React.Component {
   render() {
     var styleButton = JSON.parse(JSON.stringify(this.props.style));
     if (this.props.isPlaying) {
-      styleButton["color"] = "red";
-    } else {
-      styleButton["color"] = "black";
+      styleButton["backgroundColor"] = "#ff8080";
+      styleButton["color"] = "white";
+
     }
     if (this.props.isOn) {
       styleButton['backgroundColor'] = "#c5bade"
+    }
+    if (((this.props.count % 4) + 1) == 1) {
+      styleButton["fontWeight"] = "900";
     }
 
     return (
