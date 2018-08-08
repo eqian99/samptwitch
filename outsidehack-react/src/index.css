@@ -13,6 +13,10 @@ div.container {
 button {
   width:29px;
 }
+
+div.top-row{
+  padding-top:4px;
+}
 div.row{
   padding-left: 4px;
 }

@@ -1,5 +1,4 @@
 import React, { Component } from 'react';
-import logo from './logo.svg';
 import './App.css';
 import SearchInput, {createFilter} from 'react-search-input';
 import Tuna from 'tunajs';
@@ -88,7 +87,7 @@ class App extends Component {
     this.handleHiClick = this.handleHiClick.bind(this);
 
     this.state = {
-      currentBeat: 0,
+      currentBeat: -1,
       noteGrid: [
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
@@ -115,21 +114,26 @@ class App extends Component {
       hiPass: false
     };
 
-    this.loPassFilter = new tuna.Filter({
-      frequency: 900, //20 to 22050
-      Q: 1, //0.001 to 100
-      gain: 0, //-40 to 40 (in decibels)
-      filterType: "lowpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
-      bypass: 0
-    });
+    this.effectChains = [];
+    for (var i = 0; i < this.state.noteGrid.length; ++i) {
+        var loPassFilter = new tuna.Filter({
+            frequency: 900, //20 to 22050
+            Q: 1, //0.001 to 100
+            gain: 0, //-40 to 40 (in decibels)
+            filterType: "lowpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
+            bypass: 0
+        });
+        var hiPassFilter = new tuna.Filter({
+            frequency: 2000, //20 to 22050
+            Q: 1, //0.001 to 100
+            gain: 0, //-40 to 40 (in decibels)
+            filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
+            bypass: 0
+        });
 
-    this.hiPassFilter = new tuna.Filter({
-      frequency: 2000, //20 to 22050
-      Q: 1, //0.001 to 100
-      gain: 0, //-40 to 40 (in decibels)
-      filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
-      bypass: 0
-    });
+        this.effectChains.push([loPassFilter, hiPassFilter]);
+    }
+
     this.sampleURLs = [
       "samples/ashanti.wav",
       "samples/hello.wav",
@@ -167,14 +171,15 @@ class App extends Component {
       return;
     }
 
+    this.setState({
+      currentBeat: (this.state.currentBeat + 1) % 16
+    });
+
     for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
       if (this.state.noteGrid[sampleIndex][this.state.currentBeat] && this.sampleBuffers[sampleIndex]) {
         this.playNote(sampleIndex);
       }
     }
-    this.setState({
-      currentBeat: (this.state.currentBeat + 1) % 16
-    });
 
     setTimeout(
       () => this.tick(),
@@ -189,12 +194,12 @@ class App extends Component {
     var currentLastNode = context.destination;
 
     if (this.state.loPass) {
-      this.loPassFilter.connect(currentLastNode);
-      currentLastNode = this.loPassFilter;
+      this.effectChains[sampleIndex][0].connect(currentLastNode);
+      currentLastNode = this.effectChains[sampleIndex][0];
     }
     if (this.state.hiPass) {
-      this.hiPassFilter.connect(currentLastNode);
-      currentLastNode = this.hiPassFilter;
+        this.effectChains[sampleIndex][1].connect(currentLastNode);
+        currentLastNode = this.effectChains[sampleIndex][1];
     }
 
     source.connect(currentLastNode);
@@ -232,11 +237,13 @@ class App extends Component {
   }
   handleStopClick() {
     this.setState({
-      currentBeat: 0,
+      currentBeat: -1,
       isPlaying: false
     });
   }
   handlePlayClick(){
+
+    if (this.state.isPlaying) { return; }
 
     this.setState({
       isPlaying:true
@@ -292,12 +299,10 @@ class App extends Component {
     });
   }
   render() {
-
     var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
     if (filteredSearchResults.length == this.state.library.length){
       filteredSearchResults = [];
     }
-    filteredSearchResults = filteredSearchResults.slice(0, 20);
 
     var hiPassButtonStyle = {};
     if (this.state.hiPass){
@@ -314,9 +319,11 @@ class App extends Component {
       loPassButtonStyle["backgroundColor"] = "white"
     }
 
+    var headerStyle = {};
+    headerStyle["marginLeft"] = "30px";
+
     return (
       <div className="container">
-
         <div className="row">
           <div className="col-sm top-left">
             <input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
@@ -400,6 +407,25 @@ class SampleSequence extends React.Component {
     this.props.onSampleClick(this.props.sampleIndex);
   }
   render() {
+    var buttonStyle = {}
+    if (this.props.name < "I") {
+      buttonStyle["backgroundColor"] = "#ff9933";
+      buttonStyle["borderColor"] = "#604896";
+
+    } else {
+      buttonStyle["backgroundColor"] = "#8cc5cc";
+      buttonStyle["borderColor"] = "#604896";
+    }
+    var noteButtonStyle = {}
+    if (this.props.name < "I") {
+      noteButtonStyle["backgroundColor"] = "#fce5cf";
+      noteButtonStyle["borderColor"] = "#604896";
+
+    } else {
+      noteButtonStyle["backgroundColor"] = "#cce2e5";
+      noteButtonStyle["borderColor"] = "#604896";
+    }
+
     const counts = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     var sampleSequenceJSX = [];
     for(var i = 0; i < this.props.sequence.length; i++) {
@@ -409,13 +435,13 @@ class SampleSequence extends React.Component {
         if (this.props.currentBeat == count){
           isPlaying = true;
         }
-        row.push(<Note key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
+        row.push(<Note style={noteButtonStyle} key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
         </Note>);
         sampleSequenceJSX.push(row);
     }
     return (
       <div className="row">
-        <button className="btn-sample" type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
+        <button className="btn-sample" style={buttonStyle} type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
         {sampleSequenceJSX}
       </div>
     );
@@ -427,25 +453,23 @@ class Note extends React.Component {
   constructor(props) {
     super(props);
     this.handleNoteClick = this.handleNoteClick.bind(this);
-
   }
   handleNoteClick(e) {
     this.props.onNoteClick(this.props.count);
   }
   render() {
-    var style = {}
+    var styleButton = JSON.parse(JSON.stringify(this.props.style));
     if (this.props.isPlaying) {
-      style["color"] = "red";
+      styleButton["color"] = "red";
     } else {
-      style["color"] = "black";
+      styleButton["color"] = "black";
     }
     if (this.props.isOn) {
-      style['backgroundColor'] = "#c5bade"
-    } else {
-      style['backgroundColor'] = "white"
+      styleButton['backgroundColor'] = "#c5bade"
     }
+
     return (
-      <button type="button" onClick={this.handleNoteClick} style={style}>{this.props.count + 1}</button>
+      <button type="button" onClick={this.handleNoteClick} style={styleButton}>{(this.props.count % 4) + 1}</button>
     );
 
   }
