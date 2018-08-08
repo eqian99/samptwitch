@@ -5,7 +5,7 @@ import Tuna from 'tunajs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 
-const KEYS_TO_FILTERS = ['artist', 'track']
+const KEYS_TO_FILTERS = ['artist', 'title']
 
 const context = new AudioContext();
 var tuna = new Tuna(context);
@@ -15,7 +15,6 @@ const remoteServer = "https://35.166.222.57:5000";
 
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 var audio_samples = [];
-var pre = document.querySelector('pre');
 var audio_data_left;
 var audio_data_right;
 var sample_info_endpoint = remoteServer + '/trackinfo/';
@@ -47,8 +46,7 @@ function getData(url, trackbpm, cb) {
         sampdata.bpm = trackbpm;
         sampdata.samples = samples;
         cb(sampdata);
-      },
-      function(e){"Error with decoding audio data" + e.error});
+      });
   }
   request.send();
 }
@@ -60,7 +58,6 @@ function getTrackData(trackid, cb) {
     request.onload = function() {
         var trackdata = JSON.parse(request.response);
         getData(trackdata.url, trackdata.bpm, cb);
-        var trackbpm = trackdata.bpm;
         for(var i=0; i<30; i++) {
             var beat_number = trackdata.beat_selections[i];
             var x = {};
@@ -94,7 +91,7 @@ class App extends Component {
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+        [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
@@ -107,11 +104,13 @@ class App extends Component {
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
       ],
       bpm: 120,
+      lastNote: 0,
       isPlaying: false,
       searchTerm: '',
       library: [],
       loPass: false,
-      hiPass: false
+      hiPass: false,
+      songName: "Search for a song"
     };
 
     this.effectChains = [];
@@ -167,24 +166,26 @@ class App extends Component {
   }
 
   tick() {
-    if (!this.state.isPlaying){
+    if (!this.state.isPlaying)  {
       return;
     }
-
-    this.setState({
-      currentBeat: (this.state.currentBeat + 1) % 16
-    });
-
-    for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
-      if (this.state.noteGrid[sampleIndex][this.state.currentBeat] && this.sampleBuffers[sampleIndex]) {
-        this.playNote(sampleIndex);
+    console.log("tick");
+    var d = new Date();
+    var currTime = d.getTime();
+    if ((currTime - this.state.lastNote) > (60 *1000/ this.state.bpm)){
+      this.setState({
+        currentBeat: (this.state.currentBeat + 1) % 16,
+        lastNote: currTime
+      });
+      for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
+        if (this.state.noteGrid[sampleIndex][this.state.currentBeat] && this.sampleBuffers[sampleIndex]) {
+          this.playNote(sampleIndex);
+        }
       }
     }
 
     setTimeout(
-      () => this.tick(),
-      (60 *1000/ this.state.bpm)
-    );
+      () => this.tick(), 0);
   }
 
   playNote(sampleIndex) {
@@ -212,6 +213,7 @@ class App extends Component {
       return response.json();
     })
     .then((json) => {
+      console.log("json: ", json);
       this.setState({
         library:json
       })
@@ -256,7 +258,7 @@ class App extends Component {
 
   handleBPMChange(e){
     this.setState({
-      bpm:parseInt(e.target.value)
+      bpm:parseInt(e.target.value, 10)
     });
   }
 
@@ -277,14 +279,18 @@ class App extends Component {
     this.setState({searchTerm: term})
   }
 
-  handleSearchResultClick(trackid){
+  handleSearchResultClick(searchResult){
+    console.log("searchResult: ", searchResult);
+    var trackid = searchResult["trackid"];
+    var songName = searchResult["artist"] + " - " + searchResult["title"];
     let self = this;
     getTrackData(trackid, function(return_data){
       for (var i = 8; i < 16; i++){
         self.sampleBuffers[i] = return_data.samples[i];
       }
       self.setState({
-        bpm: (return_data.bpm * 1.1)
+        bpm: (return_data.bpm * 1.1),
+        songName: songName
       })
     })
   }
@@ -300,7 +306,7 @@ class App extends Component {
   }
   render() {
     var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
-    if (filteredSearchResults.length == this.state.library.length){
+    if (filteredSearchResults.length === this.state.library.length){
       filteredSearchResults = [];
     }
 
@@ -339,7 +345,6 @@ class App extends Component {
             <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
           </div>
         </div>
-
         <SampleSequence name="A" sequence={this.state.noteGrid[0]} sampleIndex={0} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
         <SampleSequence name="B" sequence={this.state.noteGrid[1]} sampleIndex={1} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="C" sequence={this.state.noteGrid[2]} sampleIndex={2} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
@@ -356,11 +361,13 @@ class App extends Component {
         <SampleSequence name="N" sequence={this.state.noteGrid[13]} sampleIndex={13} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="O" sequence={this.state.noteGrid[14]} sampleIndex={14} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="P" sequence={this.state.noteGrid[15]} sampleIndex={15} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-
+        <div className="row songName">
+          {this.state.songName}
+        </div>
         <SearchInput className="search-input row" onChange={this.searchUpdated} />
         {filteredSearchResults.map(searchResult => {
           return (
-            <div className="row" key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult.trackid)}}>{searchResult.artist} - {searchResult.title}</div>
+            <div className="row" key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult)}}>{searchResult.artist} - {searchResult.title}</div>
           )
         })}
       </div>
@@ -432,7 +439,7 @@ class SampleSequence extends React.Component {
         var row = [];
         var count = counts[i];
         var isPlaying = false;
-        if (this.props.currentBeat == count){
+        if (this.props.currentBeat === count){
           isPlaying = true;
         }
         row.push(<Note style={noteButtonStyle} key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
@@ -467,7 +474,7 @@ class Note extends React.Component {
     if (this.props.isOn) {
       styleButton['backgroundColor'] = "#c5bade"
     }
-    if (((this.props.count % 4) + 1) == 1) {
+    if (((this.props.count % 4) + 1) === 1) {
       styleButton["fontWeight"] = "900";
     }
 

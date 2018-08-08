@@ -2,13 +2,18 @@ body {
   margin: 0;
   padding: 0;
   font-family: sans-serif;
-  font-size: 11px !important;
+  font-size: 12px !important;
   color: white !important;
 }
 div.container {
   background-color: #604896;
   padding-top: 4px;
   padding-bottom: 4px;
+}
+
+div.songName {
+  padding: 8px 0 8px 0;
+  font-weight: bold;
 }
 button {
   width:29px;
