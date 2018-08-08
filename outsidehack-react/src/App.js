@@ -111,7 +111,7 @@ class App extends Component {
       library: [],
       loPass: false,
       hiPass: false,
-      reverb: false;
+      reverb: false,
       songName: "Search for a song"
     };
 
