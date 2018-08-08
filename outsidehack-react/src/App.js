@@ -20,10 +20,15 @@ var audio_data_right;
 var sample_info_endpoint = remoteServer + '/trackinfo/';
 var samp_rate = 44100;
 function snippet(start, stop, source) {
-    var thisbuffer = audioCtx.createBuffer(2, audioCtx.sampleRate * 5, audioCtx.sampleRate);
-    thisbuffer.copyToChannel(audio_data_left.slice(Math.floor(samp_rate*start),Math.floor(samp_rate*stop)), 0);
-    thisbuffer.copyToChannel(audio_data_right.slice(Math.floor(samp_rate*start),Math.floor(samp_rate*stop)), 1);
-    return thisbuffer;
+  console.log(start)
+  console.log(stop)
+  var samp_start = Math.floor(samp_rate*start);
+  var samp_stop = Math.floor(samp_rate*stop);
+  var buff_len = samp_stop - samp_start;
+  var thisbuffer = audioCtx.createBuffer(2, buff_len, audioCtx.sampleRate);
+  thisbuffer.copyToChannel(audio_data_left.slice(samp_start,samp_stop), 0);
+  thisbuffer.copyToChannel(audio_data_right.slice(samp_start,samp_stop), 1);
+  return thisbuffer;
 }
 
 function getData(url, trackbpm, cb) {
@@ -37,14 +42,21 @@ function getData(url, trackbpm, cb) {
         audio_data_left = myBuffer.getChannelData(0);
         audio_data_right = myBuffer.getChannelData(1);
         var samples = [];
+        var playspeeds = [];
         for(var i=0;i<30;i++)
         {
-            var samp = audio_samples[i];
-            samples.push(snippet(samp.sampstart, samp.sampend));
+          var samp = audio_samples[i];
+          samples.push(snippet(samp.sampstart, samp.sampend));
+          var expected_beatlength = (60.0/trackbpm);
+          var actual_length = (samples[samples.length-1].length)/samp_rate;
+          var num_beats = Math.round(actual_length/expected_beatlength);
+          var expected_samplelength = num_beats*expected_beatlength;
+          playspeeds.push(actual_length/expected_samplelength);
         }
         var sampdata = {};
         sampdata.bpm = trackbpm;
         sampdata.samples = samples;
+        sampdata.playspeeds = playspeeds;
         cb(sampdata);
       });
   }
@@ -59,11 +71,15 @@ function getTrackData(trackid, cb) {
         var trackdata = JSON.parse(request.response);
         getData(trackdata.url, trackdata.bpm, cb);
         for(var i=0; i<30; i++) {
-            var beat_number = trackdata.beat_selections[i];
-            var x = {};
-            x.sampstart = trackdata.beat_times[beat_number];
-            x.sampend = trackdata.beat_times[beat_number+4];
-            audio_samples.push(x);
+          var beat_number = trackdata.beat_selections[i];
+          // HACK: to handle beat numbers extending beyond end of track:
+          if(beat_number >= (trackdata.beat_times.length-4)) {
+            beat_number = trackdata.beat_times.length-5;
+          }
+          var x = {};
+          x.sampstart = trackdata.beat_times[beat_number];
+          x.sampend = trackdata.beat_times[beat_number+4];
+          audio_samples.push(x);
         }
     }
     request.send();
@@ -157,6 +173,7 @@ class App extends Component {
       "samples/thump_kick.wav"
     ];
     this.sampleBuffers = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
+    this.playSpeeds = [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0];
 
     for (var sampleIndex = 0; sampleIndex < this.sampleURLs.length; sampleIndex++) {
       this.loadSample(sampleIndex);
@@ -205,6 +222,9 @@ class App extends Component {
 
     var source = context.createBufferSource();
     source.buffer = this.sampleBuffers[sampleIndex];
+    source.playbackRate.value = this.playSpeeds[sampleIndex];
+    console.log("Playing note at:")
+    console.log(this.playSpeeds[sampleIndex])
     var currentLastNode = context.destination;
 
     if (this.state.loPass) {
@@ -249,6 +269,7 @@ class App extends Component {
     if (this.sampleBuffers[sampleIndex]){
       var source = context.createBufferSource();
       source.buffer = this.sampleBuffers[sampleIndex];
+      source.playbackRate.value = this.playSpeeds[sampleIndex];
       source.connect(context.destination);
       source.start();
     }
@@ -303,9 +324,10 @@ class App extends Component {
     getTrackData(trackid, function(return_data){
       for (var i = 8; i < 16; i++){
         self.sampleBuffers[i] = return_data.samples[i];
+        self.playSpeeds[i] = return_data.playspeeds[i];
       }
       self.setState({
-        bpm: (return_data.bpm * 1.1),
+        bpm: (return_data.bpm * 1.01), // HACK: Just to make sure the samples bleed into each other a little.
         songName: songName
       })
     })
