@@ -85,6 +85,7 @@ class App extends Component {
     this.handleSearchResultClick = this.handleSearchResultClick.bind(this);
     this.handleLoClick = this.handleLoClick.bind(this);
     this.handleHiClick = this.handleHiClick.bind(this);
+    this.handleReverbClick = this.handleReverbClick.bind(this);
 
     this.state = {
       currentBeat: -1,
@@ -111,7 +112,8 @@ class App extends Component {
       searchTerm: '',
       library: [],
       loPass: false,
-      hiPass: false
+      hiPass: false,
+      reverb: false
     };
 
     this.effectChains = [];
@@ -130,8 +132,19 @@ class App extends Component {
             filterType: "highpass", //lowpass, highpass, bandpass, lowshelf, highshelf, peaking, notch, allpass
             bypass: 0
         });
-
-        this.effectChains.push([loPassFilter, hiPassFilter]);
+        var reverbFilter = (function() {
+            var convolver = context.createConvolver(),
+                noiseBuffer = context.createBuffer(2, 0.5 * context.sampleRate, context.sampleRate),
+                left = noiseBuffer.getChannelData(0),
+                right = noiseBuffer.getChannelData(1);
+            for (var i = 0; i < noiseBuffer.length; i++) {
+                left[i] = Math.random() * 2 - 1;
+                right[i] = Math.random() * 2 - 1;
+            }
+            convolver.buffer = noiseBuffer;
+            return convolver;
+        })();
+        this.effectChains.push([loPassFilter, hiPassFilter, reverbFilter]);
     }
 
     this.sampleURLs = [
@@ -201,7 +214,10 @@ class App extends Component {
         this.effectChains[sampleIndex][1].connect(currentLastNode);
         currentLastNode = this.effectChains[sampleIndex][1];
     }
-
+    if (this.state.reverb) {
+        this.effectChains[sampleIndex][2].connect(currentLastNode);
+        currentLastNode = this.effectChains[sampleIndex][2];
+    }
     source.connect(currentLastNode);
     source.start();
   }
@@ -298,6 +314,11 @@ class App extends Component {
       hiPass: !this.state.hiPass
     });
   }
+  handleReverbClick() {
+    this.setState({
+      reverb: !this.state.reverb
+    });
+  }
   render() {
     var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
     if (filteredSearchResults.length == this.state.library.length){
@@ -319,6 +340,14 @@ class App extends Component {
       loPassButtonStyle["backgroundColor"] = "white"
     }
 
+    var reverbButtonStyle = {};
+    // reverbButtonStyle["width"] = 40
+    if (this.state.reverb){
+      reverbButtonStyle["backgroundColor"] = "#c5bade"
+    } else {
+      reverbButtonStyle["backgroundColor"] = "white"
+    }
+
     var headerStyle = {};
     headerStyle["marginLeft"] = "30px";
 
@@ -334,6 +363,7 @@ class App extends Component {
           <div className="col-sm">
             <button onClick={this.handleLoClick} style={loPassButtonStyle} data-toggle="button"><b>LO</b></button>
             <button onClick={this.handleHiClick} style={hiPassButtonStyle} data-toggle="button"><b>HI</b></button>
+            <button onClick={this.handleReverbClick} style={reverbButtonStyle} data-toggle="button"><b>Reverb</b></button>
           </div>
           <div className="col-sm top-right">
             <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
