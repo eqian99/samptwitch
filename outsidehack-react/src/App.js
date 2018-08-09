@@ -44,8 +44,6 @@ var audio_data_right;
 var sample_info_endpoint = remoteServer + '/trackinfo/';
 var samp_rate = 44100;
 function snippet(start, stop, source) {
-  //console.log(start)
-  //console.log(stop)
   var samp_start = Math.floor(samp_rate*start);
   var samp_stop = Math.floor(samp_rate*stop);
   var buff_len = samp_stop - samp_start;
@@ -123,6 +121,8 @@ class App extends Component {
     this.handleLoClick = this.handleLoClick.bind(this);
     this.handleHiClick = this.handleHiClick.bind(this);
     this.handleReverbClick = this.handleReverbClick.bind(this);
+    this.handleDoubleTimeClick = this.handleDoubleTimeClick.bind(this);
+    this.handleHalfTimeClick = this.handleHalfTimeClick.bind(this);
 
     this.state = {
       currentBeat: -1,
@@ -192,14 +192,14 @@ class App extends Component {
     }
 
     this.sampleURLs = [
-      "samples/ashanti.wav",
-      "samples/hello.wav",
-      "samples/marley_chord_1.wav",
+      "samples/ashanti_ 3613939.wav",
+      "samples/hello_245329.wav",
+      "samples/bongo_75672061.wav",
       "samples/marley_chord_2.wav",
-      "samples/be_there_crash.wav",
-      "samples/hat.wav",
-      "samples/mj_snare.wav",
-      "samples/thump_kick.wav"
+      "samples/crash_6077722.wav",
+      "samples/hat_2264.wav",
+      "samples/snare_6077722.wav",
+      "samples/kick_4522641.wav"
     ];
     this.sampleBuffers = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
     this.playSpeeds = [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0];
@@ -228,7 +228,6 @@ class App extends Component {
     if (!this.state.isPlaying)  {
       return;
     }
-    //console.log("tick");
     var d = new Date();
     var currTime = d.getTime();
     if ((currTime - this.state.lastNote) > (60 *1000/ this.state.bpm)){
@@ -251,9 +250,7 @@ class App extends Component {
 
     var source = context.createBufferSource();
     source.buffer = this.sampleBuffers[sampleIndex];
-    source.playbackRate.value = this.playSpeeds[sampleIndex];
-    //console.log("Playing note at:")
-    //console.log(this.playSpeeds[sampleIndex])
+    // source.playbackRate.value = this.playSpeeds[sampleIndex];
     var currentLastNode = context.destination;
 
     if (this.state.loPass) {
@@ -280,7 +277,6 @@ class App extends Component {
       return response.json();
     })
     .then((json) => {
-      //console.log("json: ", json);
       this.setState({
         library:json
       })
@@ -392,7 +388,7 @@ class App extends Component {
     if (this.sampleBuffers[sampleIndex]){
       var source = context.createBufferSource();
       source.buffer = this.sampleBuffers[sampleIndex];
-      source.playbackRate.value = this.playSpeeds[sampleIndex];
+      // source.playbackRate.value = this.playSpeeds[sampleIndex];
       source.connect(context.destination);
       source.start();
     }
@@ -437,7 +433,11 @@ class App extends Component {
   }
 
   searchUpdated (term) {
-    this.setState({searchTerm: term})
+    this.setState({
+      searchTerm: term,
+      isPlaying: false,
+      currentBeat: -1
+    })
   }
 
   handleNewTrackIdFromBackend(trackid, songname){
@@ -456,7 +456,6 @@ class App extends Component {
   }
 
   handleSearchResultClick(searchResult){
-    //console.log("searchResult: ", searchResult);
     var trackid = searchResult["trackid"];
     var songName = searchResult["artist"] + " - " + searchResult["title"];
     let self = this;
@@ -487,11 +486,22 @@ class App extends Component {
       reverb: !this.state.reverb
     });
   }
+  handleHalfTimeClick() {
+    this.setState({
+      bpm: this.state.bpm / 2
+    });
+  }
+  handleDoubleTimeClick() {
+    this.setState({
+      bpm: this.state.bpm * 2
+    });
+  }
   render() {
     var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
     if (filteredSearchResults.length === this.state.library.length){
       filteredSearchResults = [];
     }
+    filteredSearchResults = filteredSearchResults.slice(0, 7);
 
     var hiPassButtonStyle = {};
     if (this.state.hiPass){
@@ -519,23 +529,20 @@ class App extends Component {
     var headerStyle = {};
     headerStyle["marginLeft"] = "30px";
 
+
     return (
       <div className="container">
-        <div className="row">
-          <div className="col-sm top-left">
-            <input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
-          </div>
-          <div className="col-sm">
-            <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
-          </div >
-          <div className="col-sm">
+        <div className="row top-row">
+          <input type="number" className="tempo" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
+          <button className="tempo" onClick={this.handleHalfTimeClick} data-toggle="button"><b>.5X</b></button>
+          <button className="tempo" onClick={this.handleDoubleTimeClick} data-toggle="button"><b>2X</b></button>
+          <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
+          <div className="effects">
             <button onClick={this.handleLoClick} style={loPassButtonStyle} data-toggle="button"><b>LO</b></button>
             <button onClick={this.handleHiClick} style={hiPassButtonStyle} data-toggle="button"><b>HI</b></button>
-            <button onClick={this.handleReverbClick} style={reverbButtonStyle} data-toggle="button"><b>Reverb</b></button>
+            <button onClick={this.handleReverbClick} style={reverbButtonStyle} data-toggle="button"><b>RE</b></button>
           </div>
-          <div className="col-sm top-right">
-            <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
-          </div>
+          <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
         </div>
         <SampleSequence name="A" sequence={this.state.noteGrid[0]} sampleIndex={0} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
         <SampleSequence name="B" sequence={this.state.noteGrid[1]} sampleIndex={1} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
@@ -559,7 +566,7 @@ class App extends Component {
         <SearchInput className="search-input row" onChange={this.searchUpdated} />
         {filteredSearchResults.map(searchResult => {
           return (
-            <div className="row" key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult)}}>{searchResult.artist} - {searchResult.title}</div>
+            <div className="row search-row" key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult)}}>{searchResult.artist} - {searchResult.title}</div>
           )
         })}
       </div>
@@ -582,7 +589,7 @@ class Player extends React.Component {
   }
   render() {
     return(
-      <div>
+      <div className="player" >
         <button title="Play" onClick={this.handlePlayClick}> &#9658; </button>
         <button title="Stop" onClick={this.handleStopClick}> &#9632; </button>
       </div>
@@ -634,12 +641,13 @@ class SampleSequence extends React.Component {
         if (this.props.currentBeat === count){
           isPlaying = true;
         }
-        row.push(<Note style={noteButtonStyle} key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
+        row.push(<Note style={noteButtonStyle} key={count.toString()} sampleIndex={this.props.sampleIndex} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
         </Note>);
         sampleSequenceJSX.push(row);
     }
     return (
       <div className="row">
+
         <button className="btn-sample" style={buttonStyle} type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
         {sampleSequenceJSX}
       </div>
@@ -666,12 +674,14 @@ class Note extends React.Component {
     if (this.props.isOn) {
       styleButton['backgroundColor'] = "#c5bade"
     }
+
+    var text="";
     if (((this.props.count % 4) + 1) === 1) {
-      styleButton["fontWeight"] = "900";
+      text="\u2022";
     }
 
     return (
-      <button type="button" onClick={this.handleNoteClick} style={styleButton}>{(this.props.count % 4) + 1}</button>
+      <button type="button" onClick={this.handleNoteClick} style={styleButton}>{text}</button>
     );
 
   }

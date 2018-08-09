@@ -3,7 +3,10 @@ body {
   padding: 0;
   font-family: sans-serif;
   font-size: 12px !important;
-  color: white !important;
+  background-color: #604896 !important;
+}
+html {
+  background-color: #604896 !important;
 }
 div.container {
   background-color: #604896;
@@ -11,16 +14,44 @@ div.container {
   padding-bottom: 4px;
 }
 
+input.tempo {
+  width : 54px;
+  margin-right:4px;
+}
+div.search-row {
+  color:white;
+}
+div.search-row:hover {
+  background-color:#e6a05b;
+  cursor:pointer;
+}
+button.tempo{
+  width:34px;
+  margin-right: 4px;
+}
+
+.player {
+  margin:0 60px 0 60px;
+}
+
+.effects {
+  margin-right:61px;
+}
+
+.effects button  {
+  width:30px;
+}
 div.songName {
   padding: 8px 0 8px 0;
   font-weight: bold;
+  color:white;
 }
 button {
   width:29px;
 }
 
 div.top-row{
-  padding-top:4px;
+  padding:4px 0 4px 0;
 }
 div.row{
   padding-left: 4px;
