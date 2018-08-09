@@ -27,6 +27,8 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+
+
 const KEYS_TO_FILTERS = ['artist', 'title']
 
 const context = new AudioContext();
@@ -114,6 +116,52 @@ function getTrackData(trackid, cb) {
     request.send();
 }
 
+
+
+function onMIDISuccess(midiAccess) {
+  console.log("Accessed MIDI devices.")
+  for (var input of midiAccess.inputs.values()) {
+    console.log("Found MIDI input.");
+    input.onmidimessage = getMIDIMessage;
+  }
+}
+
+function getMIDIMessage(message) {
+  console.log(message);
+  var command = message.data[0];
+  var note = message.data[1];
+  var velocity = (message.data.length > 2) ? message.data[2] : 0;
+  switch (command) {
+    case 144: // noteOn
+      if (velocity > 0) {
+        console.log("Note on")
+        console.log(note)
+        // MAP TO GRID HERE
+      } else {
+        console.log("Note off")
+        console.log(note)
+        // noteOff(note);
+      }
+      break;
+    case 128: // noteOff
+      console.log("Note off")
+      console.log(note)
+      // noteOff(note);
+      break;
+
+  }
+  // Update the grid.
+  // this.handleNoteClick(notevalue, beatvalue);
+}
+
+function onMIDIFailure() {
+  console.log('Could not access your MIDI devices.');
+}
+
+
+
+
+
 class App extends Component {
   constructor(props) {
     super(props);
@@ -130,6 +178,8 @@ class App extends Component {
     this.handleReverbClick = this.handleReverbClick.bind(this);
     this.handleDoubleTimeClick = this.handleDoubleTimeClick.bind(this);
     this.handleHalfTimeClick = this.handleHalfTimeClick.bind(this);
+    this.getMIDIMessage = this.getMIDIMessage.bind(this);
+    this.onMIDISuccess = this.onMIDISuccess.bind(this);
 
     this.state = {
       currentBeat: -1,
@@ -139,7 +189,7 @@ class App extends Component {
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
+        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
         [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
@@ -162,6 +212,9 @@ class App extends Component {
       songName: "Search for a song",
       trackid: ''
     };
+
+    this.quadrant = 0;
+    this.midiout = {};
 
     this.effectChains = [];
     for (var i = 0; i < this.state.noteGrid.length; ++i) {
@@ -214,6 +267,184 @@ class App extends Component {
     for (var sampleIndex = 0; sampleIndex < this.sampleURLs.length; sampleIndex++) {
       this.loadSample(sampleIndex);
     }
+
+    navigator.requestMIDIAccess()
+    .then(this.onMIDISuccess, this.onMIDIFailure);
+  }
+
+  // MIDI functions:
+  // Midi access
+
+  // function onMIDISuccess(midiAccess) {
+  //     console.log(midiAccess);
+
+  //     var inputs = midiAccess.inputs;
+  //     var outputs = midiAccess.outputs;
+  // }
+
+  onMIDISuccess(midiAccess) {
+    console.log("Accessed MIDI devices.")
+    for (var input of midiAccess.inputs.values()) {
+      console.log("Found MIDI input.");
+      input.onmidimessage = this.getMIDIMessage;
+    }
+    console.log(midiAccess.outputs.values);
+    // this.midiout = midiAccess.outputs.values()[0]
+    for (var output of midiAccess.outputs.values()) {
+      this.midiout = output;
+    }
+    this.refreshLightState();
+    this.midiout.send([144,104,9]);
+  }
+
+  padlight(notevalue, beatvalue, turnon, newcolor) {
+    if(this.quadrant == 2 || this.quadrant == 3) {
+      if(notevalue < 8) {
+        return;
+      }
+      notevalue -= 8;
+    } else {
+      if(notevalue >= 8) {
+        return;
+      }
+    }
+    if(this.quadrant == 1 || this.quadrant == 3) {
+      if(beatvalue < 8) {
+        return;
+      }
+      beatvalue -= 8;
+    } else {
+      if(beatvalue >= 8) {
+        return;
+      }
+    }
+    var noteid = ((8-notevalue)*10+1) + beatvalue;
+    console.log(noteid)
+    if(turnon) {
+      var color = newcolor;
+    } else {
+      var color = 0x00;
+    }
+    this.midiout.send([144, noteid, color])
+  }
+  
+  clearlights() {
+    for(var noteidx = 0; noteidx<8; noteidx++) {
+      for(var beatidx = 0; beatidx<8; beatidx++) {
+        var noteid = ((8-noteidx)*10+1) + beatidx;
+        this.midiout.send([144, noteid, 0x00]);
+      }
+    }
+  }
+
+  turnOnLightColumnFromGrid(beatidx) {
+    this.turnOffLightColumn(beatidx)
+    for(var noteidx = 0; noteidx<16; noteidx++) {
+      if(this.state.noteGrid[noteidx][beatidx]) {
+        this.padlight(noteidx, beatidx, true, 0x31);
+      }
+    }
+  }
+  
+  turnOnLightColumn(beatidx) {
+    for(var noteidx = 0; noteidx<16; noteidx++) {
+      this.padlight(noteidx, beatidx, true, 0x05);
+    }
+  }
+
+  turnOffLightColumn(beatidx) {
+    for(var noteidx = 0; noteidx<16; noteidx++) {
+      this.padlight(noteidx, beatidx, false, 0x05);
+    }
+  }
+
+  refreshLightState() {
+    for(var beatidx = 0; beatidx<16; beatidx++) {
+      this.turnOnLightColumnFromGrid(beatidx);
+    }
+  }
+
+  getMIDIMessage(message) {
+    // console.log(message);
+    var command = message.data[0];
+    var note = message.data[1];
+    var velocity = (message.data.length > 2) ? message.data[2] : 0;
+    switch (command) {
+      case 144: // noteOn
+        if (velocity > 0) {
+          // console.log("Note on")
+          // console.log(note)
+          var notevalue = Math.floor(note/10.0);
+          if(notevalue>8) {
+            return;
+          }
+          var beatvalue = note - 10*notevalue - 1;
+          if(beatvalue>8) {
+            return;
+          }
+          notevalue = 8 - notevalue;
+          if(this.quadrant == 2 || this.quadrant == 3) {
+            notevalue += 8;
+          }
+          if(this.quadrant == 1 || this.quadrant == 3) {
+            beatvalue += 8;
+          }
+          // Update the grid.
+          this.handleNoteClick(notevalue, beatvalue);
+          // MAP TO GRID HERE
+        }// else {
+          // console.log("Note off")
+          // console.log(note)
+          // noteOff(note);
+        // }
+        break;
+      case 128: // noteOff
+        // console.log("Note off")
+        // console.log(note)
+        // noteOff(note);
+        break;
+      case 176:
+        if(note < 104 || note > 106){
+          return;
+        }
+        if(note == 104) {
+          // upper left
+          this.quadrant = 0;
+          this.midiout.send([144,104,9]);
+          this.midiout.send([144,105,0]);
+          this.midiout.send([144,106,0]);
+          this.midiout.send([144,107,0]);
+        }
+        else if(note == 105) {
+          // upper right
+          this.quadrant = 1;
+          this.midiout.send([144,104,0]);
+          this.midiout.send([144,105,9]);
+          this.midiout.send([144,106,0]);
+          this.midiout.send([144,107,0]);
+        }
+        else if(note == 106) {
+          // lower left
+          this.quadrant = 2;
+          this.midiout.send([144,104,0]);
+          this.midiout.send([144,105,0]);
+          this.midiout.send([144,106,9]);
+          this.midiout.send([144,107,0]);
+        }
+        else if(note == 107) {
+          this.quadrant = 3;
+          this.midiout.send([144,104,0]);
+          this.midiout.send([144,105,0]);
+          this.midiout.send([144,106,0]);
+          this.midiout.send([144,107,9]);
+        }
+        this.refreshLightState();
+        break;
+    }
+  }
+
+  onMIDIFailure() {
+    console.log('Could not access your MIDI devices.');
   }
 
   loadSample(sampleIndex){
@@ -238,15 +469,19 @@ class App extends Component {
     var d = new Date();
     var currTime = d.getTime();
     if ((currTime - this.state.lastNote) > (60 *1000/ this.state.bpm)){
+      this.turnOnLightColumnFromGrid((this.state.currentBeat) % 16);
       this.setState({
         currentBeat: (this.state.currentBeat + 1) % 16,
         lastNote: currTime
       });
+      this.turnOnLightColumn((this.state.currentBeat) % 16);
       for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
         if (this.state.noteGrid[sampleIndex][this.state.currentBeat] && this.sampleBuffers[sampleIndex]) {
           this.playNote(sampleIndex);
         }
       }
+      // Update midi out:
+      
     }
 
     setTimeout(
@@ -389,6 +624,7 @@ class App extends Component {
     this.setState({
       noteGrid: newNoteGrid
     }, this.sendStateToBackend);
+    this.padlight(sampleIndex, currentBeat, newNoteGrid[sampleIndex][currentBeat], 0x31);
   }
 
   handleSampleClick(sampleIndex){
@@ -405,6 +641,7 @@ class App extends Component {
       currentBeat: -1,
       isPlaying: false
     });
+    this.refreshLightState();
   }
   handlePlayClick(){
 
