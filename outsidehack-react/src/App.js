@@ -5,7 +5,7 @@ import Tuna from 'tunajs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // CHANGE IF YOU DO NOT WANT TO USE TWITCH
-var twitchOn = true;
+var twitchOn = false;
 
 //twitch related stuff
 var token = "";
@@ -315,7 +315,7 @@ class App extends Component {
             noteGrid: data.grid
         });
 
-        that.handleNewTrackIdFromBackend(data.trackid);
+        that.handleNewTrackIdFromBackend(data.trackid, data.songname);
     })
     .then(() => {
         if (!twitchOn)
@@ -356,7 +356,7 @@ class App extends Component {
       });
 
       if (this.state.trackid != state.trackid) {
-          this.handleNewTrackIdFromBackend(state.trackid);
+          this.handleNewTrackIdFromBackend(state.trackid, state.songname);
       }
   }
 
@@ -368,7 +368,8 @@ class App extends Component {
           bpm: this.state.bpm,
           trackid: this.state.trackid,
           effects: [this.state.loPass, this.state.hiPass],
-          grid: this.state.noteGrid
+          grid: this.state.noteGrid,
+          songname: this.state.songName
       }
 
       fetch(backendServer + '/samptwitch/change', {
@@ -439,7 +440,7 @@ class App extends Component {
     this.setState({searchTerm: term})
   }
 
-  handleNewTrackIdFromBackend(trackid){
+  handleNewTrackIdFromBackend(trackid, songname){
     let self = this;
     getTrackData(trackid, function(return_data){
       for (var i = 8; i < 16; i++){
@@ -448,7 +449,8 @@ class App extends Component {
       }
       self.setState({
         bpm: (return_data.bpm * 1.01), // HACK: Just to make sure the samples bleed into each other a little.
-        trackid: trackid
+        trackid: trackid,
+        songName: songname
       })
     })
   }

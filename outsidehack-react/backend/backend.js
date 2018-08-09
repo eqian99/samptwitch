@@ -44,6 +44,9 @@ const defaultBPM = 120;
 const channelBPMs = {};
 
 const defaultTrackId = '5135353';
+const defaultSongName = 'Carpenters - We\'ve Only Just Begun';
+const channelSongNames = {};
+
 const channelTrackIds = {};
 
 const defaultEffects = [false, false];
@@ -130,7 +133,8 @@ function getOption(optionName, environmentName, localValue) {
 }
 
 const server = new Hapi.Server({
-  host: 'localhost',
+  //host: 'localhost',
+  host: 'ec2-34-227-194-251.compute-1.amazonaws.com',
   port: 8081,
   tls: {
     // If you need a certificate, execute "npm run cert".
@@ -168,7 +172,8 @@ function queryStateHandler(req) {
         bpm: channelBPMs[channelId] || defaultBPM,
         trackid: channelTrackIds[channelId] || defaultTrackId,
         effects: channelEffects[channelId] || defaultEffects,
-        grid: channelGrids[channelId] || defaultGrid
+        grid: channelGrids[channelId] || defaultGrid,
+        songname: channelSongNames[channelId] || defaultSongName
     };
 
     return state;
@@ -189,6 +194,7 @@ function changeStateHandler(req) {
     const effects = data.effects;
     const trackid = data.trackid;
     const grid = data.grid;
+    const songname = data.songname;
     //const effects = parseEffectsParam(request.params.effects);
     //const trackid = request.params.trackid;
     //const grid = parseGridParam(request.params.grid);
@@ -197,6 +203,7 @@ function changeStateHandler(req) {
     channelEffects[channelId] = effects;
     channelTrackIds[channelId] = trackid;
     channelGrids[channelId] = grid;
+    channelSongNames[channelId] = songname;
 
     // Broadcast the color change to all other extension instances on this channel.
     attemptStateBroadcast(channelId);
@@ -231,7 +238,8 @@ function sendStateBroadcast(channelId) {
         bpm: channelBPMs[channelId],
         trackid: channelTrackIds[channelId],
         effects: channelEffects[channelId],
-        grid: channelGrids[channelId]
+        grid: channelGrids[channelId],
+        songname: channelSongNames[channelId]
     }
     // Create the POST body for the Twitch API request.
     const body = JSON.stringify({
