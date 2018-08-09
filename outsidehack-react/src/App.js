@@ -82,7 +82,7 @@ function getData(url, trackbpm, cb) {
         sampdata.bpm = trackbpm;
         sampdata.samples = samples;
         sampdata.playspeeds = playspeeds;
-        console.log(sampdata.samples[0]);
+        //console.log(sampdata.samples[0]);
         cb(sampdata);
       });
   }
@@ -95,7 +95,7 @@ function getTrackData(trackid, cb) {
     request.open('GET', url, true);
     request.onload = function() {
         var trackdata = JSON.parse(request.response);
-        console.log(trackdata);
+        //console.log(trackdata);
         audio_samples = [];
         for(var i=0; i<30; i++) {
           var beat_number = trackdata.beat_selections[i];
