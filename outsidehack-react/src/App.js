@@ -174,12 +174,16 @@ class App extends Component {
         });
         var reverbFilter = (function() {
             var convolver = context.createConvolver(),
-                noiseBuffer = context.createBuffer(2, 0.5 * context.sampleRate, context.sampleRate),
+                noiseBuffer = context.createBuffer(2, 0.15 * context.sampleRate, context.sampleRate),
                 left = noiseBuffer.getChannelData(0),
-                right = noiseBuffer.getChannelData(1);
+                right = noiseBuffer.getChannelData(1),
+                decay = 2;
             for (var i = 0; i < noiseBuffer.length; i++) {
-                left[i] = Math.random() * 2 - 1;
-                right[i] = Math.random() * 2 - 1;
+              //  original convolver
+              //  left[i] = Math.random() * 2 - 1;
+              //  right[i] = Math.random() * 2 - 1;
+              left[i] = (Math.random() * 2 - 1) * Math.pow(1 - 1 / noiseBuffer.length, decay);
+              right[i] = (Math.random() * 2 - 1) * Math.pow(1 - 1 / noiseBuffer.length, decay);
             }
             convolver.buffer = noiseBuffer;
             return convolver;
