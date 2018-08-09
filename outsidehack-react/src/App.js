@@ -5,7 +5,7 @@ import Tuna from 'tunajs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // CHANGE IF YOU DO NOT WANT TO USE TWITCH
-var twitchOn = false;
+var twitchOn = true;
 
 //twitch related stuff
 var token = "";
@@ -42,10 +42,13 @@ var audio_samples = [];
 var audio_data_left;
 var audio_data_right;
 var sample_info_endpoint = remoteServer + '/trackinfo/';
-var samp_rate = 44100;
+//var samp_rate = 44100;
+var samp_rate = context.sampleRate;
 function snippet(start, stop, source) {
   var samp_start = Math.floor(samp_rate*start);
   var samp_stop = Math.floor(samp_rate*stop);
+  //console.log(samp_start);
+  //console.log(samp_stop);
   var buff_len = samp_stop - samp_start;
   var thisbuffer = audioCtx.createBuffer(2, buff_len, audioCtx.sampleRate);
   thisbuffer.copyToChannel(audio_data_left.slice(samp_start,samp_stop), 0);
@@ -79,6 +82,7 @@ function getData(url, trackbpm, cb) {
         sampdata.bpm = trackbpm;
         sampdata.samples = samples;
         sampdata.playspeeds = playspeeds;
+        console.log(sampdata.samples[0]);
         cb(sampdata);
       });
   }
@@ -91,7 +95,8 @@ function getTrackData(trackid, cb) {
     request.open('GET', url, true);
     request.onload = function() {
         var trackdata = JSON.parse(request.response);
-        getData(trackdata.url, trackdata.bpm, cb);
+        console.log(trackdata);
+        audio_samples = [];
         for(var i=0; i<30; i++) {
           var beat_number = trackdata.beat_selections[i];
           // HACK: to handle beat numbers extending beyond end of track:
@@ -103,6 +108,8 @@ function getTrackData(trackid, cb) {
           x.sampend = trackdata.beat_times[beat_number+4];
           audio_samples.push(x);
         }
+
+        getData(trackdata.url, trackdata.bpm, cb);
     }
     request.send();
 }
