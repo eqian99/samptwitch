@@ -5,7 +5,7 @@ import Tuna from 'tunajs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // CHANGE IF YOU DO NOT WANT TO USE TWITCH
-var twitchOn = false;
+var twitchOn = true;
 
 //twitch related stuff
 var token = "";
@@ -44,8 +44,8 @@ var audio_data_right;
 var sample_info_endpoint = remoteServer + '/trackinfo/';
 var samp_rate = 44100;
 function snippet(start, stop, source) {
-  console.log(start)
-  console.log(stop)
+  //console.log(start)
+  //console.log(stop)
   var samp_start = Math.floor(samp_rate*start);
   var samp_stop = Math.floor(samp_rate*stop);
   var buff_len = samp_stop - samp_start;
@@ -224,7 +224,7 @@ class App extends Component {
     if (!this.state.isPlaying)  {
       return;
     }
-    console.log("tick");
+    //console.log("tick");
     var d = new Date();
     var currTime = d.getTime();
     if ((currTime - this.state.lastNote) > (60 *1000/ this.state.bpm)){
@@ -248,8 +248,8 @@ class App extends Component {
     var source = context.createBufferSource();
     source.buffer = this.sampleBuffers[sampleIndex];
     source.playbackRate.value = this.playSpeeds[sampleIndex];
-    console.log("Playing note at:")
-    console.log(this.playSpeeds[sampleIndex])
+    //console.log("Playing note at:")
+    //console.log(this.playSpeeds[sampleIndex])
     var currentLastNode = context.destination;
 
     if (this.state.loPass) {
@@ -276,7 +276,7 @@ class App extends Component {
       return response.json();
     })
     .then((json) => {
-      console.log("json: ", json);
+      //console.log("json: ", json);
       this.setState({
         library:json
       })
@@ -380,8 +380,7 @@ class App extends Component {
     newNoteGrid[sampleIndex][currentBeat] = !newNoteGrid[sampleIndex][currentBeat];
     this.setState({
       noteGrid: newNoteGrid
-    });
-    this.sendStateToBackend();
+    }, this.sendStateToBackend);
   }
 
   handleSampleClick(sampleIndex){
@@ -429,9 +428,9 @@ class App extends Component {
     }
     this.setState({
       noteGrid: newNoteGrid
-    });
-    this.sendStateToBackend();
+    }, this.sendStateToBackend);
   }
+
   searchUpdated (term) {
     this.setState({searchTerm: term})
   }
@@ -440,17 +439,18 @@ class App extends Component {
     let self = this;
     getTrackData(trackid, function(return_data){
       for (var i = 8; i < 16; i++){
-        self.sampleBuffers[i] = return_data.samples[i];
+          self.sampleBuffers[i] = return_data.samples[i];
+          self.playSpeeds[i] = return_data.playspeeds[i];
       }
       self.setState({
-        bpm: (return_data.bpm * 1.1),
+        bpm: (return_data.bpm * 1.01), // HACK: Just to make sure the samples bleed into each other a little.
         trackid: trackid
       })
     })
   }
 
   handleSearchResultClick(searchResult){
-    console.log("searchResult: ", searchResult);
+    //console.log("searchResult: ", searchResult);
     var trackid = searchResult["trackid"];
     var songName = searchResult["artist"] + " - " + searchResult["title"];
     let self = this;
@@ -461,10 +461,9 @@ class App extends Component {
       }
       self.setState({
         bpm: (return_data.bpm * 1.01), // HACK: Just to make sure the samples bleed into each other a little.
-        songName: songName
-      })
-
-      self.sendStateToBackend();
+        songName: songName,
+        trackid: trackid
+        }, self.sendStateToBackend);
     })
   }
   handleLoClick() {
