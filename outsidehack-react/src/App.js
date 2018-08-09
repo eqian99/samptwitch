@@ -6,8 +6,6 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 // CHANGE IF YOU DO NOT WANT TO USE TWITCH
 var twitchOn = false;
-if (window.Twitch)
-    twitchOn = true;
 
 //twitch related stuff
 var token = "";
@@ -36,7 +34,8 @@ var tuna = new Tuna(context);
 
 const localServer = "https://127.0.0.1:5000";
 const remoteServer = "https://35.166.222.57:5000";
-const backendServer = "https://localhost:8081";
+//const backendServer = "https://localhost:8081";
+const backendServer = "https://ec2-34-227-194-251.compute-1.amazonaws.com:8081"
 
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 var audio_samples = [];
@@ -300,12 +299,12 @@ class App extends Component {
         })
     })
     .then(function(response) {
-        if (!response)
+        if (!twitchOn)
             return;
         return response.json();
     })
     .then(function(data) {
-        if (!data)
+        if (!twitchOn)
             return;
         // console.log(data);
         that.setState({
