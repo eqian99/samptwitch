@@ -4,6 +4,30 @@ import SearchInput, {createFilter} from 'react-search-input';
 import Tuna from 'tunajs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+// CHANGE IF YOU DO NOT WANT TO USE TWITCH
+var twitchOn = false;
+if (window.Twitch)
+    twitchOn = true;
+
+//twitch related stuff
+var token = "";
+var tuid = "";
+var ebs = "";
+var twitch = undefined;
+if (twitchOn) {
+    twitch = window.Twitch.ext;
+
+    twitch.onAuthorized(function(auth) {
+        // save our credentials
+        token = auth.token;
+        tuid = auth.userId;
+    });
+}
+
+//sleep helper function
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 const KEYS_TO_FILTERS = ['artist', 'title']
 
@@ -12,6 +36,7 @@ var tuna = new Tuna(context);
 
 const localServer = "https://127.0.0.1:5000";
 const remoteServer = "https://35.166.222.57:5000";
+const backendServer = "https://localhost:8081";
 
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 var audio_samples = [];
@@ -128,7 +153,8 @@ class App extends Component {
       loPass: false,
       hiPass: false,
       reverb: false,
-      songName: "Search for a song"
+      songName: "Search for a song",
+      trackid: ''
     };
 
     this.effectChains = [];
@@ -244,6 +270,8 @@ class App extends Component {
   }
 
   componentDidMount() {
+    //ugggh hacky js
+    var that = this;
     fetch(remoteServer + "/getlibrary")
     .then((response) => {
       return response.json();
@@ -253,7 +281,98 @@ class App extends Component {
       this.setState({
         library:json
       })
+    })
+    .then(() => {
+        // wait for twitch authentication
+        if (!twitchOn)
+            return;
+
+        this.waitForToken();
+        if (!token)
+            console.log("Failed getting token...backend won't work!");
+    })
+    .then(() => {
+        if (!twitchOn)
+            return;
+        // get initial state from backend
+        return fetch(backendServer + '/samptwitch/query', {
+            headers: {'Authorization': 'Bearer ' + token}
+        })
+    })
+    .then(function(response) {
+        if (!response)
+            return;
+        return response.json();
+    })
+    .then(function(data) {
+        if (!data)
+            return;
+        // console.log(data);
+        that.setState({
+            noteGrid: data.grid
+        });
+
+        that.handleNewTrackIdFromBackend(data.trackid);
+    })
+    .then(() => {
+        if (!twitchOn)
+            return;
+        // listen for incoming broadcast message from our EBS
+        twitch.listen('broadcast', function (target, contentType, state) {
+            twitch.rig.log('Received broadcast message!!');
+            var stateObj = JSON.parse(state);
+            that.updateStateFromBackend(stateObj);
+        });
     });
+  }
+
+  async waitForToken() {
+      var count = 0;
+      while (true){
+          count += 1;
+          if (!token) {
+              console.log("Waiting for token...");
+              await sleep(1000);
+          }
+          else {
+              console.log("Have token!");
+              break;
+          }
+
+          if (count == 100)
+            break;
+      }
+  }
+
+  updateStateFromBackend(state) {
+      if (!twitchOn)
+        return;
+
+      this.setState({
+          noteGrid: state.grid
+      });
+
+      if (this.state.trackid != state.trackid) {
+          this.handleNewTrackIdFromBackend(state.trackid);
+      }
+  }
+
+  sendStateToBackend() {
+      if (!twitchOn)
+        return;
+
+      var currentState = {
+          bpm: this.state.bpm,
+          trackid: this.state.trackid,
+          effects: [this.state.loPass, this.state.hiPass],
+          grid: this.state.noteGrid
+      }
+
+      fetch(backendServer + '/samptwitch/change', {
+          headers: {'Authorization': 'Bearer ' + token},
+          method: 'POST',
+          body: JSON.stringify(currentState)
+      })
   }
 
   handleNoteClick(sampleIndex, currentBeat){
@@ -263,6 +382,7 @@ class App extends Component {
     this.setState({
       noteGrid: newNoteGrid
     });
+    this.sendStateToBackend();
   }
 
   handleSampleClick(sampleIndex){
@@ -311,9 +431,23 @@ class App extends Component {
     this.setState({
       noteGrid: newNoteGrid
     });
+    this.sendStateToBackend();
   }
   searchUpdated (term) {
     this.setState({searchTerm: term})
+  }
+
+  handleNewTrackIdFromBackend(trackid){
+    let self = this;
+    getTrackData(trackid, function(return_data){
+      for (var i = 8; i < 16; i++){
+        self.sampleBuffers[i] = return_data.samples[i];
+      }
+      self.setState({
+        bpm: (return_data.bpm * 1.1),
+        trackid: trackid
+      })
+    })
   }
 
   handleSearchResultClick(searchResult){
@@ -330,6 +464,8 @@ class App extends Component {
         bpm: (return_data.bpm * 1.01), // HACK: Just to make sure the samples bleed into each other a little.
         songName: songName
       })
+
+      self.sendStateToBackend();
     })
   }
   handleLoClick() {
