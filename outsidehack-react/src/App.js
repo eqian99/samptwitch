@@ -4,24 +4,17 @@ import SearchInput, {createFilter} from 'react-search-input';
 import Tuna from 'tunajs';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-
 const KEYS_TO_FILTERS = ['artist', 'title']
 
 const context = new AudioContext();
 var tuna = new Tuna(context);
 
-const localServer = "https://127.0.0.1:5000";
-const remoteServer = "https://35.166.222.57:5000";
-
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 var audio_samples = [];
 var audio_data_left;
 var audio_data_right;
-var sample_info_endpoint = remoteServer + '/trackinfo/';
 var samp_rate = 44100;
 function snippet(start, stop, source) {
-  console.log(start)
-  console.log(stop)
   var samp_start = Math.floor(samp_rate*start);
   var samp_stop = Math.floor(samp_rate*stop);
   var buff_len = samp_stop - samp_start;
@@ -64,25 +57,6 @@ function getData(url, trackbpm, cb) {
 }
 
 function getTrackData(trackid, cb) {
-    var url = sample_info_endpoint + trackid;
-    var request = new XMLHttpRequest();
-    request.open('GET', url, true);
-    request.onload = function() {
-        var trackdata = JSON.parse(request.response);
-        getData(trackdata.url, trackdata.bpm, cb);
-        for(var i=0; i<30; i++) {
-          var beat_number = trackdata.beat_selections[i];
-          // HACK: to handle beat numbers extending beyond end of track:
-          if(beat_number >= (trackdata.beat_times.length-4)) {
-            beat_number = trackdata.beat_times.length-5;
-          }
-          var x = {};
-          x.sampstart = trackdata.beat_times[beat_number];
-          x.sampend = trackdata.beat_times[beat_number+4];
-          audio_samples.push(x);
-        }
-    }
-    request.send();
 }
 
 class App extends Component {
@@ -95,32 +69,25 @@ class App extends Component {
     this.handleBPMChange = this.handleBPMChange.bind(this);
     this.handleClearClick = this.handleClearClick.bind(this);
     this.searchUpdated = this.searchUpdated.bind(this)
-    this.handleSearchResultClick = this.handleSearchResultClick.bind(this);
     this.handleLoClick = this.handleLoClick.bind(this);
     this.handleHiClick = this.handleHiClick.bind(this);
     this.handleReverbClick = this.handleReverbClick.bind(this);
+    this.handleDoubleTimeClick = this.handleDoubleTimeClick.bind(this);
+    this.handleHalfTimeClick = this.handleHalfTimeClick.bind(this);
 
     this.state = {
       currentBeat: -1,
       noteGrid: [
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
-        [false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false]
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false],
+        [false, false, false, false, false, false, false, false]
       ],
-      bpm: 120,
+      bpm: 148,
       lastNote: 0,
       isPlaying: false,
       searchTerm: '',
@@ -149,7 +116,7 @@ class App extends Component {
         });
         var reverbFilter = (function() {
             var convolver = context.createConvolver(),
-                noiseBuffer = context.createBuffer(2, 0.5 * context.sampleRate, context.sampleRate),
+                noiseBuffer = context.createBuffer(2, 0.1 * context.sampleRate, context.sampleRate),
                 left = noiseBuffer.getChannelData(0),
                 right = noiseBuffer.getChannelData(1);
             for (var i = 0; i < noiseBuffer.length; i++) {
@@ -163,14 +130,14 @@ class App extends Component {
     }
 
     this.sampleURLs = [
-      "samples/ashanti.wav",
-      "samples/hello.wav",
-      "samples/marley_chord_1.wav",
-      "samples/marley_chord_2.wav",
-      "samples/be_there_crash.wav",
+      "samples/you_know.wav",
+      "samples/couple_days.wav",
+      "samples/so_cold.wav",
       "samples/hat.wav",
-      "samples/mj_snare.wav",
-      "samples/thump_kick.wav"
+      "samples/tom.wav",
+      "samples/snare.wav",
+      "samples/kick.wav",
+      "samples/bass.wav"
     ];
     this.sampleBuffers = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
     this.playSpeeds = [1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0];
@@ -199,12 +166,11 @@ class App extends Component {
     if (!this.state.isPlaying)  {
       return;
     }
-    console.log("tick");
     var d = new Date();
     var currTime = d.getTime();
     if ((currTime - this.state.lastNote) > (60 *1000/ this.state.bpm)){
       this.setState({
-        currentBeat: (this.state.currentBeat + 1) % 16,
+        currentBeat: (this.state.currentBeat + 1) % 8,
         lastNote: currTime
       });
       for (var sampleIndex = 0; sampleIndex < this.state.noteGrid.length; sampleIndex++) {
@@ -222,9 +188,7 @@ class App extends Component {
 
     var source = context.createBufferSource();
     source.buffer = this.sampleBuffers[sampleIndex];
-    source.playbackRate.value = this.playSpeeds[sampleIndex];
-    console.log("Playing note at:")
-    console.log(this.playSpeeds[sampleIndex])
+    // source.playbackRate.value = this.playSpeeds[sampleIndex];
     var currentLastNode = context.destination;
 
     if (this.state.loPass) {
@@ -244,16 +208,7 @@ class App extends Component {
   }
 
   componentDidMount() {
-    fetch(remoteServer + "/getlibrary")
-    .then((response) => {
-      return response.json();
-    })
-    .then((json) => {
-      console.log("json: ", json);
-      this.setState({
-        library:json
-      })
-    });
+
   }
 
   handleNoteClick(sampleIndex, currentBeat){
@@ -269,7 +224,7 @@ class App extends Component {
     if (this.sampleBuffers[sampleIndex]){
       var source = context.createBufferSource();
       source.buffer = this.sampleBuffers[sampleIndex];
-      source.playbackRate.value = this.playSpeeds[sampleIndex];
+      // source.playbackRate.value = this.playSpeeds[sampleIndex];
       source.connect(context.destination);
       source.start();
     }
@@ -301,9 +256,9 @@ class App extends Component {
 
   handleClearClick() {
     var newNoteGrid = [];
-    for (var i = 0; i < 16; i++){
+    for (var i = 0; i < 8; i++){
       var row = [];
-      for (var j = 0; j < 16; j++) {
+      for (var j = 0; j < 8; j++) {
         row.push(false);
       }
       newNoteGrid.push(row);
@@ -313,25 +268,13 @@ class App extends Component {
     });
   }
   searchUpdated (term) {
-    this.setState({searchTerm: term})
-  }
-
-  handleSearchResultClick(searchResult){
-    console.log("searchResult: ", searchResult);
-    var trackid = searchResult["trackid"];
-    var songName = searchResult["artist"] + " - " + searchResult["title"];
-    let self = this;
-    getTrackData(trackid, function(return_data){
-      for (var i = 8; i < 16; i++){
-        self.sampleBuffers[i] = return_data.samples[i];
-        self.playSpeeds[i] = return_data.playspeeds[i];
-      }
-      self.setState({
-        bpm: (return_data.bpm * 1.01), // HACK: Just to make sure the samples bleed into each other a little.
-        songName: songName
-      })
+    this.setState({
+      searchTerm: term,
+      isPlaying: false,
+      currentBeat: -1
     })
   }
+
   handleLoClick() {
     this.setState({
       loPass: !this.state.loPass
@@ -347,11 +290,22 @@ class App extends Component {
       reverb: !this.state.reverb
     });
   }
+  handleHalfTimeClick() {
+    this.setState({
+      bpm: this.state.bpm / 2
+    });
+  }
+  handleDoubleTimeClick() {
+    this.setState({
+      bpm: this.state.bpm * 2
+    });
+  }
   render() {
     var filteredSearchResults = this.state.library.filter(createFilter(this.state.searchTerm, KEYS_TO_FILTERS))
     if (filteredSearchResults.length === this.state.library.length){
       filteredSearchResults = [];
     }
+    filteredSearchResults = filteredSearchResults.slice(0, 7);
 
     var hiPassButtonStyle = {};
     if (this.state.hiPass){
@@ -379,22 +333,14 @@ class App extends Component {
     var headerStyle = {};
     headerStyle["marginLeft"] = "30px";
 
+
     return (
       <div className="container">
-        <div className="row">
-          <div className="col-sm top-left">
-            <input type="number" onChange={this.handleBPMChange} value={this.state.bpm} min="60" max="1000"></input>
-          </div>
-          <div className="col-sm">
-            <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
-          </div >
-          <div className="col-sm">
+        <div className="row top-row">
+          <Player onStopClick={this.handleStopClick} onPlayClick={this.handlePlayClick}/>
+          <div className="effects">
             <button onClick={this.handleLoClick} style={loPassButtonStyle} data-toggle="button"><b>LO</b></button>
             <button onClick={this.handleHiClick} style={hiPassButtonStyle} data-toggle="button"><b>HI</b></button>
-            <button onClick={this.handleReverbClick} style={reverbButtonStyle} data-toggle="button"><b>Reverb</b></button>
-          </div>
-          <div className="col-sm top-right">
-            <button className="top-right" onClick={this.handleClearClick}><b>X</b></button>
           </div>
         </div>
         <SampleSequence name="A" sequence={this.state.noteGrid[0]} sampleIndex={0} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
@@ -405,23 +351,8 @@ class App extends Component {
         <SampleSequence name="F" sequence={this.state.noteGrid[5]} sampleIndex={5} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="G" sequence={this.state.noteGrid[6]} sampleIndex={6} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="H" sequence={this.state.noteGrid[7]} sampleIndex={7} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <SampleSequence name="I" sequence={this.state.noteGrid[8]} sampleIndex={8} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
-        <SampleSequence name="J" sequence={this.state.noteGrid[9]} sampleIndex={9} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <SampleSequence name="K" sequence={this.state.noteGrid[10]} sampleIndex={10} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <SampleSequence name="L" sequence={this.state.noteGrid[11]} sampleIndex={11} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <SampleSequence name="M" sequence={this.state.noteGrid[12]} sampleIndex={12} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick} />
-        <SampleSequence name="N" sequence={this.state.noteGrid[13]} sampleIndex={13} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <SampleSequence name="O" sequence={this.state.noteGrid[14]} sampleIndex={14} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <SampleSequence name="P" sequence={this.state.noteGrid[15]} sampleIndex={15} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <div className="row songName">
-          {this.state.songName}
-        </div>
-        <SearchInput className="search-input row" onChange={this.searchUpdated} />
-        {filteredSearchResults.map(searchResult => {
-          return (
-            <div className="row" key={searchResult.trackid} onClick={()=>{this.handleSearchResultClick(searchResult)}}>{searchResult.artist} - {searchResult.title}</div>
-          )
-        })}
+        <a href="https://fanlink.to/wake-up">Listen to Wake Up by Doji</a>
+        <p>Created by Matt McCallum, Andrew Silverman, Isaac Chien, Emma Qian, </p>
       </div>
     );
   }
@@ -442,7 +373,7 @@ class Player extends React.Component {
   }
   render() {
     return(
-      <div>
+      <div className="player" >
         <button title="Play" onClick={this.handlePlayClick}> &#9658; </button>
         <button title="Stop" onClick={this.handleStopClick}> &#9632; </button>
       </div>
@@ -485,7 +416,7 @@ class SampleSequence extends React.Component {
       noteButtonStyle["borderColor"] = "#604896";
     }
 
-    const counts = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+    const counts = [0, 1, 2, 3, 4, 5, 6, 7];
     var sampleSequenceJSX = [];
     for(var i = 0; i < this.props.sequence.length; i++) {
         var row = [];
@@ -494,12 +425,13 @@ class SampleSequence extends React.Component {
         if (this.props.currentBeat === count){
           isPlaying = true;
         }
-        row.push(<Note style={noteButtonStyle} key={count.toString()} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
+        row.push(<Note style={noteButtonStyle} key={count.toString()} sampleIndex={this.props.sampleIndex} isPlaying={isPlaying} isOn={this.props.sequence[i]} onNoteClick={this.handleNoteClick} count={count}>
         </Note>);
         sampleSequenceJSX.push(row);
     }
     return (
       <div className="row">
+
         <button className="btn-sample" style={buttonStyle} type="button" onClick={() => {this.handleSampleClick(this.props.sampleIndex)}}> {this.props.name} </button>
         {sampleSequenceJSX}
       </div>
@@ -526,12 +458,14 @@ class Note extends React.Component {
     if (this.props.isOn) {
       styleButton['backgroundColor'] = "#c5bade"
     }
+
+    var text="";
     if (((this.props.count % 4) + 1) === 1) {
-      styleButton["fontWeight"] = "900";
+      text="\u2022";
     }
 
     return (
-      <button type="button" onClick={this.handleNoteClick} style={styleButton}>{(this.props.count % 4) + 1}</button>
+      <button type="button" onClick={this.handleNoteClick} style={styleButton}>{text}</button>
     );
 
   }
