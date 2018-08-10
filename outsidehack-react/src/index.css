@@ -13,12 +13,12 @@ div.container {
   padding-top: 4px;
   padding-bottom: 4px;
 }
-a {
+a.music {
   font-size: 20px;
 }
 p {
   font-size: 14px;
-  width:300px;
+  width:280px;
 }
 input.tempo {
   width : 54px;

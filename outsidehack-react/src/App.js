@@ -351,8 +351,8 @@ class App extends Component {
         <SampleSequence name="F" sequence={this.state.noteGrid[5]} sampleIndex={5} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="G" sequence={this.state.noteGrid[6]} sampleIndex={6} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
         <SampleSequence name="H" sequence={this.state.noteGrid[7]} sampleIndex={7} currentBeat={this.state.currentBeat} onSampleClick={this.handleSampleClick} onNoteClick={this.handleNoteClick}/>
-        <a href="https://fanlink.to/wake-up">Listen to Wake Up by Doji</a>
-        <p>Created by Matt McCallum, Andrew Silverman, Isaac Chien, Emma Qian, </p>
+        <a className="music"href="https://fanlink.to/wake-up">Listen to Wake Up by Doji</a>
+        <p>Created by <a href="http://mattcmccallum.com">Matt McCallum</a>, Andrew Silverman, Isaac Chien, Emma Qian, Haeree Lee</p>
       </div>
     );
   }
